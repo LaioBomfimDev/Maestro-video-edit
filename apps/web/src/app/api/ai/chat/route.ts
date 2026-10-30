@@ -72,6 +72,16 @@ export async function POST(request: NextRequest) {
 	const json = await upstream.json().catch(() => null);
 	const data = geminiResponseSchema.safeParse(json);
 
+	if (upstream.status === 429) {
+		return NextResponse.json(
+			{
+				error:
+					"Cota do Gemini esgotada (limite de requisições da sua chave). Tente novamente mais tarde ou use uma chave com mais cota.",
+			},
+			{ status: 429 },
+		);
+	}
+
 	if (!upstream.ok || !data.success) {
 		const message = data.success
 			? (data.data.error?.message ?? upstream.statusText)

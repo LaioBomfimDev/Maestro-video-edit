@@ -31,8 +31,16 @@ export function AssistantView() {
 	const send = useAiChatStore((state) => state.send);
 	const stop = useAiChatStore((state) => state.stop);
 	const clear = useAiChatStore((state) => state.clear);
+	const bindProject = useAiChatStore((state) => state.bindProject);
+	const projectId = useEditor(
+		(editor) => editor.project.getActiveOrNull()?.metadata.id,
+	);
 	const [input, setInput] = useState("");
 	const scrollRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (projectId) bindProject({ projectId });
+	}, [projectId, bindProject]);
 
 	useEffect(() => {
 		const element = scrollRef.current;

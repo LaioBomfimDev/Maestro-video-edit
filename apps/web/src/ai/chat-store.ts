@@ -16,6 +16,7 @@ export interface AiChatMessage {
 }
 
 interface AiChatStore {
+	projectId: string | null;
 	messages: AiChatMessage[];
 	contents: GeminiContent[];
 	isRunning: boolean;
@@ -26,6 +27,26 @@ interface AiChatStore {
 	stop: () => void;
 	undoMessage: (params: { id: string }) => void;
 	clear: () => void;
+	bindProject: (params: { projectId: string }) => void;
+}
+
+type PersistedAiChat = Pick<
+	AiChatStore,
+	"projectId" | "messages" | "contents" | "styleReference"
+>;
+
+// Command history is in-memory, so per-reply undo ranges can't survive a reload.
+function sanitizeRestoredMessages(messages: AiChatMessage[]): AiChatMessage[] {
+	return messages.map((message) => ({
+		...message,
+		history: undefined,
+		progress: null,
+		status: message.status === "running" ? "error" : message.status,
+		text:
+			message.status === "running"
+				? message.text || "Interrompido (página recarregada)."
+				: message.text,
+	}));
 }
 
 export const useAiChatStore = create<AiChatStore>()(
@@ -45,6 +66,7 @@ export const useAiChatStore = create<AiChatStore>()(
 				}));
 
 			return {
+				projectId: null,
 				messages: [],
 				contents: [],
 				isRunning: false,
@@ -188,11 +210,30 @@ export const useAiChatStore = create<AiChatStore>()(
 					get().abortController?.abort();
 					set({ messages: [], contents: [], isRunning: false });
 				},
+
+				bindProject: ({ projectId }) => {
+					if (get().projectId === projectId) return;
+					get().abortController?.abort();
+					set({ projectId, messages: [], contents: [], isRunning: false });
+				},
 			};
 		},
 		{
 			name: "ai-chat",
-			partialize: (state) => ({ styleReference: state.styleReference }),
+			partialize: (state): PersistedAiChat => ({
+				projectId: state.projectId,
+				messages: state.messages,
+				contents: state.contents,
+				styleReference: state.styleReference,
+			}),
+			merge: (persisted, current) => {
+				const restored = (persisted ?? {}) as Partial<PersistedAiChat>;
+				return {
+					...current,
+					...restored,
+					messages: sanitizeRestoredMessages(restored.messages ?? []),
+				};
+			},
 		},
 	),
 );

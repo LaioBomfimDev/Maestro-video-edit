@@ -445,9 +445,20 @@ const handlers: Record<string, ToolHandler> = {
 
 	remove_time_ranges: ({ ctx, args }) => {
 		const { editor } = ctx;
-		const ranges = readRanges({ args });
+		const totalBefore = toSeconds({ time: editor.timeline.getTotalDuration() });
+		if (totalBefore <= 0) {
+			throw new ToolError("The timeline is empty; there is nothing to remove");
+		}
+		const ranges = readRanges({ args })
+			.map((range) => ({
+				start: Math.max(0, range.start),
+				end: Math.min(totalBefore, range.end),
+			}))
+			.filter((range) => range.end > range.start);
 		if (ranges.length === 0) {
-			throw new ToolError("No valid ranges");
+			throw new ToolError(
+				`No valid ranges inside the timeline (0s-${totalBefore}s)`,
+			);
 		}
 		withRippleDisabled({
 			editor,
@@ -461,17 +472,13 @@ const handlers: Record<string, ToolHandler> = {
 				}
 			},
 		});
-		const removed = ranges.reduce(
-			(total, range) => total + range.end - range.start,
-			0,
-		);
+		const totalAfter = toSeconds({ time: editor.timeline.getTotalDuration() });
+		const removed = Math.max(0, totalBefore - totalAfter);
 		return {
 			result: {
 				removedRanges: ranges.length,
 				removedSeconds: Math.round(removed * 100) / 100,
-				newTotalDuration: toSeconds({
-					time: editor.timeline.getTotalDuration(),
-				}),
+				newTotalDuration: totalAfter,
 			},
 			summary: `Removeu ${ranges.length} trecho(s), ${formatSeconds({ seconds: removed })} no total`,
 		};
