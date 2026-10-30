@@ -90,6 +90,10 @@ export class CommandManager {
 		});
 	}
 
+	getHistorySize(): number {
+		return this.history.length;
+	}
+
 	canUndo(): boolean {
 		return this.history.length > 0;
 	}
