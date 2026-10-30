@@ -24,7 +24,7 @@ const webEnvSchema = z.object({
 	FREESOUND_CLIENT_ID: z.string(),
 	FREESOUND_API_KEY: z.string(),
 	GEMINI_API_KEY: z.string().optional(),
-	GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+	GEMINI_MODEL: z.string().default("gemini-3.5-flash"),
 });
 
 export type WebEnv = z.infer<typeof webEnvSchema>;

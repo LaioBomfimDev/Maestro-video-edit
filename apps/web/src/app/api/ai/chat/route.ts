@@ -6,6 +6,7 @@ import { buildSystemPrompt } from "@/ai/system-prompt";
 import { chatRequestSchema, geminiContentSchema } from "@/ai/types";
 
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta";
+const GEMINI_TIMEOUT_MS = 90_000;
 
 const geminiResponseSchema = z.object({
 	candidates: z
@@ -55,8 +56,18 @@ export async function POST(request: NextRequest) {
 				tools: [{ functionDeclarations: AI_TOOL_DECLARATIONS }],
 				toolConfig: { functionCallingConfig: { mode: "AUTO" } },
 			}),
+			signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
 		},
-	);
+	).catch((error: unknown) => error);
+
+	if (!(upstream instanceof Response)) {
+		const timedOut =
+			upstream instanceof DOMException && upstream.name === "TimeoutError";
+		return NextResponse.json(
+			{ error: timedOut ? "Gemini timed out" : "Could not reach Gemini" },
+			{ status: 504 },
+		);
+	}
 
 	const json = await upstream.json().catch(() => null);
 	const data = geminiResponseSchema.safeParse(json);
