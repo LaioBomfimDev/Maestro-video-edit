@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { EditorCore } from "@/core";
 import { generateUUID } from "@/utils/id";
 import { buildUserContent, runAgent } from "./agent";
+import { executeTool } from "./tools";
 import type { AiActionLog, GeminiContent } from "./types";
 
 export interface AiChatMessage {
@@ -24,6 +25,11 @@ interface AiChatStore {
 	abortController: AbortController | null;
 	setStyleReference: (value: string) => void;
 	send: (params: { text: string }) => Promise<void>;
+	runQuickAction: (params: {
+		label: string;
+		tool: string;
+		args?: Record<string, unknown>;
+	}) => Promise<void>;
 	stop: () => void;
 	undoMessage: (params: { id: string }) => void;
 	clear: () => void;
@@ -173,6 +179,77 @@ export const useAiChatStore = create<AiChatStore>()(
 						abortController: null,
 						contents: status === "error" ? get().contents : contentsAfter,
 					});
+				},
+
+				runQuickAction: async ({ label, tool, args = {} }) => {
+					if (get().isRunning) return;
+					const editor = EditorCore.getInstance();
+					const assistantId = generateUUID();
+					const historyBefore = editor.command.getHistorySize();
+					set((state) => ({
+						isRunning: true,
+						messages: [
+							...state.messages,
+							{
+								id: generateUUID(),
+								role: "user",
+								text: label,
+								actions: [],
+								status: "done",
+							},
+							{
+								id: assistantId,
+								role: "assistant",
+								text: "",
+								actions: [],
+								status: "running",
+								progress: "Processando...",
+							},
+						],
+					}));
+
+					const outcome = await executeTool({
+						ctx: {
+							editor,
+							onProgress: (progress) =>
+								updateMessage({
+									id: assistantId,
+									update: () => ({ progress }),
+								}),
+						},
+						name: tool,
+						args,
+					});
+					const historyAfter = editor.command.getHistorySize();
+					updateMessage({
+						id: assistantId,
+						update: () => ({
+							status: outcome.ok ? "done" : "error",
+							progress: null,
+							actions: [
+								{ name: tool, summary: outcome.summary, ok: outcome.ok },
+							],
+							history:
+								historyAfter > historyBefore
+									? { before: historyBefore, after: historyAfter }
+									: undefined,
+						}),
+					});
+					set((state) => ({
+						isRunning: false,
+						contents: [
+							...state.contents,
+							{
+								role: "user",
+								parts: [
+									{
+										text: `[The user ran the quick action "${label}" locally (${tool}): ${outcome.summary}]`,
+									},
+								],
+							},
+							{ role: "model", parts: [{ text: "Ok." }] },
+						],
+					}));
 				},
 
 				stop: () => get().abortController?.abort(),

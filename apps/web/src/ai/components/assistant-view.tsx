@@ -19,10 +19,21 @@ import { cn } from "@/utils/ui";
 import { type AiChatMessage, useAiChatStore } from "@/ai/chat-store";
 
 const SUGGESTIONS = [
-	"Remova os silêncios e pausas longas do vídeo",
-	"Gere legendas automáticas em português",
+	"Corte vícios de linguagem (é, tipo, né), erros e repetições",
+	"Remova os silêncios de forma agressiva, estilo jump cut",
 	"Crie um título de abertura nos primeiros 3 segundos",
 	"Faça um corte de até 30s só com os melhores trechos",
+];
+
+// Run locally without calling Gemini: instant and don't use API quota.
+const QUICK_ACTIONS = [
+	{ label: "Remover silêncios", tool: "remove_silences", args: {} },
+	{
+		label: "Só pausas longas",
+		tool: "remove_silences",
+		args: { min_silence_seconds: 1 },
+	},
+	{ label: "Legendas", tool: "add_captions", args: { language: "pt" } },
 ];
 
 export function AssistantView() {
@@ -31,6 +42,7 @@ export function AssistantView() {
 	const send = useAiChatStore((state) => state.send);
 	const stop = useAiChatStore((state) => state.stop);
 	const clear = useAiChatStore((state) => state.clear);
+	const runQuickAction = useAiChatStore((state) => state.runQuickAction);
 	const bindProject = useAiChatStore((state) => state.bindProject);
 	const projectId = useEditor(
 		(editor) => editor.project.getActiveOrNull()?.metadata.id,
@@ -84,6 +96,20 @@ export function AssistantView() {
 					)}
 				</div>
 				<div className="bg-background sticky bottom-0 flex flex-col gap-2 pt-3">
+					<div className="flex flex-wrap gap-1.5">
+						{QUICK_ACTIONS.map((action) => (
+							<Button
+								key={action.label}
+								variant="outline"
+								size="sm"
+								className="h-6 px-2 text-xs"
+								disabled={isRunning}
+								onClick={() => void runQuickAction(action)}
+							>
+								{action.label}
+							</Button>
+						))}
+					</div>
 					<StyleReference />
 					<div className="relative">
 						<Textarea

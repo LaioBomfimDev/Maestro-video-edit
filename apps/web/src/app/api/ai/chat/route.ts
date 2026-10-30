@@ -7,6 +7,8 @@ import { chatRequestSchema, geminiContentSchema } from "@/ai/types";
 
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta";
 const GEMINI_TIMEOUT_MS = 90_000;
+// Rate limit / overload / model unavailable: try the next model in the chain.
+const RETRYABLE_STATUSES = new Set([404, 429, 500, 503]);
 
 const geminiResponseSchema = z.object({
 	candidates: z
@@ -40,29 +42,54 @@ export async function POST(request: NextRequest) {
 	}
 
 	const { contents, styleReference } = parsed.data;
-	const upstream = await fetch(
-		`${GEMINI_API_URL}/models/${encodeURIComponent(webEnv.GEMINI_MODEL)}:generateContent`,
-		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"x-goog-api-key": apiKey,
-			},
-			body: JSON.stringify({
-				systemInstruction: {
-					parts: [{ text: buildSystemPrompt({ styleReference }) }],
-				},
-				contents,
-				tools: [{ functionDeclarations: AI_TOOL_DECLARATIONS }],
-				toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-			}),
-			signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+	const requestBody = JSON.stringify({
+		systemInstruction: {
+			parts: [{ text: buildSystemPrompt({ styleReference }) }],
 		},
-	).catch((error: unknown) => error);
+		contents,
+		tools: [{ functionDeclarations: AI_TOOL_DECLARATIONS }],
+		toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+		...(webEnv.GEMINI_THINKING_LEVEL === "off"
+			? {}
+			: {
+					generationConfig: {
+						thinkingConfig: { thinkingLevel: webEnv.GEMINI_THINKING_LEVEL },
+					},
+				}),
+	});
 
-	if (!(upstream instanceof Response)) {
+	const models = [
+		webEnv.GEMINI_MODEL,
+		...webEnv.GEMINI_FALLBACK_MODELS.split(",").map((model) => model.trim()),
+	].filter((model, index, list) => model && list.indexOf(model) === index);
+
+	let upstream: Response | null = null;
+	let networkError: unknown = null;
+	for (const model of models) {
+		const attempt = await fetch(
+			`${GEMINI_API_URL}/models/${encodeURIComponent(model)}:generateContent`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"x-goog-api-key": apiKey,
+				},
+				body: requestBody,
+				signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+			},
+		).catch((error: unknown) => error);
+		if (!(attempt instanceof Response)) {
+			networkError = attempt;
+			continue;
+		}
+		upstream = attempt;
+		if (!RETRYABLE_STATUSES.has(attempt.status)) break;
+	}
+
+	if (!upstream) {
 		const timedOut =
-			upstream instanceof DOMException && upstream.name === "TimeoutError";
+			networkError instanceof DOMException &&
+			networkError.name === "TimeoutError";
 		return NextResponse.json(
 			{ error: timedOut ? "Gemini timed out" : "Could not reach Gemini" },
 			{ status: 504 },

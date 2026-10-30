@@ -16,7 +16,7 @@ export const AI_TOOL_DECLARATIONS = [
 	{
 		name: "get_transcript",
 		description:
-			"Transcribes the timeline audio locally (Whisper) and returns timestamped segments in timeline seconds. Use it for content-aware edits: removing silences, filler words, mistakes, or picking highlights. Can take a while the first time.",
+			"Transcribes the timeline audio locally (Whisper) and returns timestamped segments in timeline seconds. Use it only for content-aware edits that depend on what is said: filler words, mistakes, retakes, picking highlights. Do NOT use it just to remove silences (use remove_silences). Slow the first time.",
 		parameters: {
 			type: "object",
 			properties: {
@@ -32,6 +32,53 @@ export const AI_TOOL_DECLARATIONS = [
 		name: "remove_time_ranges",
 		description:
 			"Cuts the given time ranges out of the whole timeline (all tracks) and closes the gaps, shifting later content left. Best tool for removing silences, mistakes or unwanted parts.",
+		parameters: {
+			type: "object",
+			properties: {
+				ranges: {
+					type: "array",
+					items: {
+						type: "object",
+						properties: {
+							start: time("Range start in seconds."),
+							end: time("Range end in seconds."),
+						},
+						required: ["start", "end"],
+					},
+				},
+			},
+			required: ["ranges"],
+		},
+	},
+	{
+		name: "remove_silences",
+		description:
+			"Detects silent/quiet parts directly from the timeline audio (fast, no transcription) and cuts them out of all tracks, closing the gaps. Use for 'remove silences/pauses', 'tighten pacing', 'jump cut'.",
+		parameters: {
+			type: "object",
+			properties: {
+				min_silence_seconds: time(
+					"Only remove silences at least this long. Default 0.5. Use ~0.3 for aggressive jump cuts, ~1.0 to only remove long pauses.",
+				),
+				padding_seconds: time(
+					"Silence kept next to speech so cuts don't clip words. Default 0.12.",
+				),
+				threshold_db: {
+					type: "number",
+					description:
+						"Loudness (dBFS) below which audio counts as silence. Omit to auto-detect from the audio (recommended).",
+				},
+				dry_run: {
+					type: "boolean",
+					description: "Only report the silences found without cutting.",
+				},
+			},
+		},
+	},
+	{
+		name: "keep_only_ranges",
+		description:
+			"Keeps only the given time ranges (in order) and removes everything else from the timeline, closing the gaps. Use to build highlight reels / short cuts from transcript segments.",
 		parameters: {
 			type: "object",
 			properties: {

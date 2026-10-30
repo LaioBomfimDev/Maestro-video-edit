@@ -7,12 +7,67 @@ import {
 	chatResponseSchema,
 } from "./types";
 
-const MAX_AGENT_STEPS = 16;
+const MAX_AGENT_STEPS = 12;
 
 export interface AgentCallbacks {
 	onText: (text: string) => void;
 	onAction: (action: AiActionLog) => void;
 	onProgress: (message: string | null) => void;
+}
+
+const STATE_MARKER = "\n\n[Current editor state]\n";
+const MAX_OLD_RESPONSE_CHARS = 1500;
+
+/**
+ * Older turns don't need full editor snapshots or long tool outputs (the model
+ * already acted on them), so they are shortened to keep requests small and fast.
+ */
+function compactHistory({
+	contents,
+}: {
+	contents: GeminiContent[];
+}): GeminiContent[] {
+	let lastStateIndex = -1;
+	contents.forEach((content, index) => {
+		if (
+			content.role === "user" &&
+			content.parts.some((part) => part.text?.includes(STATE_MARKER))
+		) {
+			lastStateIndex = index;
+		}
+	});
+	return contents.map((content, index) => {
+		if (content.role !== "user" || index >= lastStateIndex) return content;
+		return {
+			...content,
+			parts: content.parts.map((part) => {
+				if (part.text?.includes(STATE_MARKER)) {
+					return {
+						...part,
+						text: `${part.text.split(STATE_MARKER)[0]}\n\n[older editor state omitted]`,
+					};
+				}
+				const response = part.functionResponse;
+				if (
+					response &&
+					JSON.stringify(response.response).length > MAX_OLD_RESPONSE_CHARS
+				) {
+					const summary: Record<string, unknown> = {
+						note: "Older tool output omitted; call the tool again if needed.",
+					};
+					for (const [key, value] of Object.entries(response.response)) {
+						if (typeof value !== "object" || value === null)
+							summary[key] = value;
+					}
+					return {
+						...part,
+						functionResponse: { ...response, response: summary },
+					};
+				}
+				return part;
+			}),
+		};
+	});
 }
 
 export function buildUserContent({
@@ -25,7 +80,7 @@ export function buildUserContent({
 	const state = JSON.stringify(describeEditorState({ editor }));
 	return {
 		role: "user",
-		parts: [{ text: `${text}\n\n[Current editor state]\n${state}` }],
+		parts: [{ text: `${text}${STATE_MARKER}${state}` }],
 	};
 }
 
@@ -41,7 +96,10 @@ async function requestModel({
 	const response = await fetch("/api/ai/chat", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ contents, styleReference }),
+		body: JSON.stringify({
+			contents: compactHistory({ contents }),
+			styleReference,
+		}),
 		signal,
 	});
 	const json: unknown = await response.json().catch(() => null);

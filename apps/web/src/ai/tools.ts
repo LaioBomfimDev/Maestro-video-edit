@@ -11,10 +11,7 @@ import { VOLUME_DB_MAX, VOLUME_DB_MIN } from "@/timeline/audio-constants";
 import { buildConstantRetime } from "@/retime/presets";
 import { buildSubtitleTextElement } from "@/subtitles/build-subtitle-text-element";
 import { insertCaptionChunksAsTextTrack } from "@/subtitles/insert";
-import { extractTimelineAudio } from "@/media/mediabunny";
-import { decodeAudioToFloat32 } from "@/media/audio";
 import { transcriptionService } from "@/services/transcription/service";
-import { DEFAULT_TRANSCRIPTION_SAMPLE_RATE } from "@/transcription/audio";
 import { buildCaptionChunks } from "@/transcription/caption";
 import { TRANSCRIPTION_LANGUAGES } from "@/transcription/supported-languages";
 import type {
@@ -27,6 +24,8 @@ import {
 	mediaTimeToSeconds,
 	roundMediaTime,
 } from "@/wasm";
+import { getTimelineAudio } from "./audio-analysis";
+import { detectSilences } from "./silence-detection";
 import type { ToolResult } from "./types";
 
 type Args = Record<string, unknown>;
@@ -255,16 +254,7 @@ async function transcribeTimeline({
 		return transcriptCache.segments;
 	}
 
-	onProgress?.("Extraindo áudio da timeline...");
-	const audioBlob = await extractTimelineAudio({
-		tracks,
-		mediaAssets: editor.media.getAssets(),
-		totalDuration: editor.timeline.getTotalDuration(),
-	});
-	const { samples } = await decodeAudioToFloat32({
-		audioBlob,
-		sampleRate: DEFAULT_TRANSCRIPTION_SAMPLE_RATE,
-	});
+	const { samples } = await getTimelineAudio({ editor, onProgress });
 	const result = await transcriptionService.transcribe({
 		audioData: samples,
 		language,
@@ -391,6 +381,53 @@ function removeRange({
 	}
 }
 
+function cutRanges({
+	editor,
+	ranges,
+}: {
+	editor: EditorCore;
+	ranges: Array<{ start: number; end: number }>;
+}): {
+	ranges: Array<{ start: number; end: number }>;
+	removedSeconds: number;
+	totalAfter: number;
+} {
+	const totalBefore = toSeconds({ time: editor.timeline.getTotalDuration() });
+	if (totalBefore <= 0) {
+		throw new ToolError("The timeline is empty; there is nothing to remove");
+	}
+	const clamped = mergeRanges({
+		ranges: ranges.map((range) => ({
+			start: Math.max(0, range.start),
+			end: Math.min(totalBefore, range.end),
+		})),
+	});
+	if (clamped.length === 0) {
+		throw new ToolError(
+			`No valid ranges inside the timeline (0s-${totalBefore}s)`,
+		);
+	}
+	withRippleDisabled({
+		editor,
+		run: () => {
+			for (const range of [...clamped].reverse()) {
+				removeRange({
+					editor,
+					start: toTime({ seconds: range.start }),
+					end: toTime({ seconds: range.end }),
+				});
+			}
+		},
+	});
+	const totalAfter = toSeconds({ time: editor.timeline.getTotalDuration() });
+	return {
+		ranges: clamped,
+		removedSeconds:
+			Math.round(Math.max(0, totalBefore - totalAfter) * 100) / 100,
+		totalAfter,
+	};
+}
+
 function withRippleDisabled<T>({
 	editor,
 	run,
@@ -429,13 +466,13 @@ const handlers: Record<string, ToolHandler> = {
 		});
 		const rounded = segments
 			.slice(0, MAX_TRANSCRIPT_SEGMENTS)
-			.map((segment) => ({
-				start: Math.round(segment.start * 100) / 100,
-				end: Math.round(segment.end * 100) / 100,
-				text: segment.text.trim(),
-			}));
+			.map(
+				(segment) =>
+					`${segment.start.toFixed(2)}-${segment.end.toFixed(2)}: ${segment.text.trim()}`,
+			);
 		return {
 			result: {
+				format: "start-end: text (timeline seconds)",
 				segments: rounded,
 				truncated: segments.length > MAX_TRANSCRIPT_SEGMENTS,
 			},
@@ -444,43 +481,97 @@ const handlers: Record<string, ToolHandler> = {
 	},
 
 	remove_time_ranges: ({ ctx, args }) => {
-		const { editor } = ctx;
-		const totalBefore = toSeconds({ time: editor.timeline.getTotalDuration() });
-		if (totalBefore <= 0) {
-			throw new ToolError("The timeline is empty; there is nothing to remove");
-		}
-		const ranges = readRanges({ args })
-			.map((range) => ({
-				start: Math.max(0, range.start),
-				end: Math.min(totalBefore, range.end),
-			}))
-			.filter((range) => range.end > range.start);
-		if (ranges.length === 0) {
-			throw new ToolError(
-				`No valid ranges inside the timeline (0s-${totalBefore}s)`,
-			);
-		}
-		withRippleDisabled({
-			editor,
-			run: () => {
-				for (const range of [...ranges].reverse()) {
-					removeRange({
-						editor,
-						start: toTime({ seconds: range.start }),
-						end: toTime({ seconds: range.end }),
-					});
-				}
-			},
-		});
-		const totalAfter = toSeconds({ time: editor.timeline.getTotalDuration() });
-		const removed = Math.max(0, totalBefore - totalAfter);
+		const cut = cutRanges({ editor: ctx.editor, ranges: readRanges({ args }) });
 		return {
 			result: {
-				removedRanges: ranges.length,
-				removedSeconds: Math.round(removed * 100) / 100,
-				newTotalDuration: totalAfter,
+				removedRanges: cut.ranges.length,
+				removedSeconds: cut.removedSeconds,
+				newTotalDuration: cut.totalAfter,
 			},
-			summary: `Removeu ${ranges.length} trecho(s), ${formatSeconds({ seconds: removed })} no total`,
+			summary: `Removeu ${cut.ranges.length} trecho(s), ${formatSeconds({ seconds: cut.removedSeconds })} no total`,
+		};
+	},
+
+	keep_only_ranges: ({ ctx, args }) => {
+		const { editor } = ctx;
+		const total = toSeconds({ time: editor.timeline.getTotalDuration() });
+		const keep = readRanges({ args });
+		if (keep.length === 0) {
+			throw new ToolError("No ranges to keep");
+		}
+		const remove: Array<{ start: number; end: number }> = [];
+		let cursor = 0;
+		for (const range of keep) {
+			if (range.start > cursor)
+				remove.push({ start: cursor, end: range.start });
+			cursor = Math.max(cursor, range.end);
+		}
+		if (cursor < total) remove.push({ start: cursor, end: total });
+		if (remove.length === 0) {
+			throw new ToolError("The ranges already cover the whole timeline");
+		}
+		const cut = cutRanges({ editor, ranges: remove });
+		return {
+			result: {
+				keptRanges: keep.length,
+				removedSeconds: cut.removedSeconds,
+				newTotalDuration: cut.totalAfter,
+			},
+			summary: `Manteve ${keep.length} trecho(s) (${formatSeconds({ seconds: cut.totalAfter })} no total)`,
+		};
+	},
+
+	remove_silences: async ({ ctx, args }) => {
+		const { editor, onProgress } = ctx;
+		if (toSeconds({ time: editor.timeline.getTotalDuration() }) <= 0) {
+			throw new ToolError("The timeline is empty");
+		}
+		const audio = await getTimelineAudio({ editor, onProgress });
+		onProgress?.("Detectando silêncios...");
+		const minSilenceSeconds = Math.max(
+			0.15,
+			readNumber({ args, key: "min_silence_seconds" }) ?? 0.5,
+		);
+		const paddingSeconds = Math.min(
+			0.5,
+			Math.max(0, readNumber({ args, key: "padding_seconds" }) ?? 0.12),
+		);
+		const detection = detectSilences({
+			audio,
+			minSilenceSeconds,
+			paddingSeconds,
+			thresholdDb: readNumber({ args, key: "threshold_db" }),
+		});
+		if (detection.ranges.length === 0) {
+			return {
+				result: { removedRanges: 0, thresholdDb: detection.thresholdDb },
+				summary: "Nenhum silêncio encontrado",
+			};
+		}
+		if (readBoolean({ args, key: "dry_run" })) {
+			const total = detection.ranges.reduce(
+				(sum, range) => sum + range.end - range.start,
+				0,
+			);
+			return {
+				result: {
+					silences: detection.ranges.slice(0, 200),
+					totalSeconds: Math.round(total * 100) / 100,
+					thresholdDb: detection.thresholdDb,
+				},
+				summary: `Encontrou ${detection.ranges.length} silêncio(s) (${formatSeconds({ seconds: total })})`,
+			};
+		}
+		onProgress?.(`Removendo ${detection.ranges.length} silêncio(s)...`);
+		const cut = cutRanges({ editor, ranges: detection.ranges });
+		return {
+			result: {
+				removedRanges: cut.ranges.length,
+				removedSeconds: cut.removedSeconds,
+				newTotalDuration: cut.totalAfter,
+				thresholdDb: detection.thresholdDb,
+			},
+			summary: `Removeu ${cut.ranges.length} silêncio(s), ${formatSeconds({ seconds: cut.removedSeconds })} no total`,
 		};
 	},
 
@@ -810,6 +901,26 @@ const handlers: Record<string, ToolHandler> = {
 	},
 };
 
+const READ_ONLY_TOOLS = new Set(["get_timeline_state", "get_transcript"]);
+
+/** Fresh IDs/times after an edit, so the model can chain edits without re-reading state. */
+function describeTimelineCompact({ editor }: { editor: EditorCore }) {
+	const tracks = getTracks({ editor });
+	return {
+		totalDuration: toSeconds({ time: editor.timeline.getTotalDuration() }),
+		tracks: getOrderedTracks({ tracks })
+			.filter((track) => track.elements.length > 0)
+			.map((track) => ({
+				id: track.id,
+				type: track.type,
+				elements: track.elements.map(
+					(element) =>
+						`${element.id} ${element.type} ${toSeconds({ time: element.startTime })}-${toSeconds({ time: roundMediaTime({ time: element.startTime + element.duration }) })}`,
+				),
+			})),
+	};
+}
+
 export async function executeTool({
 	ctx,
 	name,
@@ -829,7 +940,17 @@ export async function executeTool({
 	}
 	try {
 		const outcome = await handler({ ctx, args });
-		return { ...outcome, ok: true };
+		if (READ_ONLY_TOOLS.has(name) || args.dry_run === true) {
+			return { ...outcome, ok: true };
+		}
+		return {
+			...outcome,
+			result: {
+				...outcome.result,
+				timelineAfter: describeTimelineCompact({ editor: ctx.editor }),
+			},
+			ok: true,
+		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return {
