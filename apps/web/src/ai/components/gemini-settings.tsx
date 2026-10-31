@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,14 +18,22 @@ import {
 } from "@/components/ui/dialog";
 import {
 	getGeminiApiKey,
+	subscribeGeminiKey,
 	setGeminiApiKey,
 	geminiRequestHeaders,
 } from "../credentials";
 
+import { GeminiQuota } from "./gemini-quota";
+
 export function GeminiSettings({ disabled = false }: { disabled?: boolean }) {
 	const [open, setOpen] = useState(false);
 	const [key, setKey] = useState("");
-	const [configured, setConfigured] = useState(false);
+	const activeKey = useSyncExternalStore(
+		subscribeGeminiKey,
+		getGeminiApiKey,
+		() => "",
+	);
+	const configured = Boolean(activeKey);
 	const [showKey, setShowKey] = useState(false);
 	const [testing, setTesting] = useState(false);
 	const testRequest = useRef<AbortController | null>(null);
@@ -33,7 +41,6 @@ export function GeminiSettings({ disabled = false }: { disabled?: boolean }) {
 		{},
 	);
 
-	useEffect(() => setConfigured(Boolean(getGeminiApiKey())), []);
 	useEffect(() => () => testRequest.current?.abort(), []);
 
 	function changeOpen(next: boolean) {
@@ -80,14 +87,9 @@ export function GeminiSettings({ disabled = false }: { disabled?: boolean }) {
 	return (
 		<Dialog open={open} onOpenChange={changeOpen}>
 			<DialogTrigger asChild>
-				<Button
-					variant="outline"
-					size="sm"
-					disabled={disabled}
-					aria-label="Configurar Gemini"
-				>
+				<Button variant="outline" size="sm" aria-label="Configurar Gemini">
 					<KeyRound />
-					Gemini{" "}
+					Gemini · Cota{" "}
 					{configured && (
 						<span
 							className="size-1.5 rounded-full bg-emerald-500"
@@ -96,11 +98,11 @@ export function GeminiSettings({ disabled = false }: { disabled?: boolean }) {
 					)}
 				</Button>
 			</DialogTrigger>
-			<DialogContent>
+			<DialogContent className="max-h-[90vh] overflow-y-auto">
 				<form
 					onSubmit={(event) => {
 						event.preventDefault();
-						if (testing) return;
+						if (testing || disabled) return;
 						if (
 							!key.trim() ||
 							/\s/.test(key.trim()) ||
@@ -113,8 +115,6 @@ export function GeminiSettings({ disabled = false }: { disabled?: boolean }) {
 							return;
 						}
 						setGeminiApiKey(key);
-						setConfigured(true);
-						changeOpen(false);
 						toast.success("Chave Gemini atualizada nesta aba.");
 					}}
 				>
@@ -126,6 +126,19 @@ export function GeminiSettings({ disabled = false }: { disabled?: boolean }) {
 						</DialogDescription>
 					</DialogHeader>
 					<DialogBody>
+						<GeminiQuota apiKey={activeKey} />
+						{key.trim() !== activeKey && (
+							<p className="text-xs text-amber-600">
+								O painel acompanha a chave em uso. Clique em Usar chave para
+								acompanhar a chave que você está digitando.
+							</p>
+						)}
+						{disabled && (
+							<p className="text-xs text-muted-foreground">
+								Você pode acompanhar a cota durante a edição. Aguarde a tarefa
+								terminar para trocar ou testar a chave.
+							</p>
+						)}
 						<div className="flex flex-col gap-2">
 							<Label htmlFor="gemini-api-key">Chave da API Gemini</Label>
 							<Input
@@ -142,7 +155,7 @@ export function GeminiSettings({ disabled = false }: { disabled?: boolean }) {
 								spellCheck={false}
 								maxLength={4096}
 								placeholder="Cole sua chave do Google AI Studio"
-								disabled={testing}
+								disabled={testing || disabled}
 							/>
 							<a
 								className="text-sm underline underline-offset-4"
@@ -170,11 +183,10 @@ export function GeminiSettings({ disabled = false }: { disabled?: boolean }) {
 					<DialogFooter>
 						<Button
 							variant="ghost"
-							disabled={!configured || testing}
+							disabled={!configured || testing || disabled}
 							onClick={() => {
 								setGeminiApiKey("");
 								setKey("");
-								setConfigured(false);
 								setStatus({});
 								toast.success("Chave removida desta aba.");
 							}}
@@ -183,12 +195,12 @@ export function GeminiSettings({ disabled = false }: { disabled?: boolean }) {
 						</Button>
 						<Button
 							variant="outline"
-							disabled={!key.trim() || testing}
+							disabled={!key.trim() || testing || disabled}
 							onClick={() => void testKey()}
 						>
 							{testing ? "Testando..." : "Testar conexão"}
 						</Button>
-						<Button type="submit" disabled={!key.trim() || testing}>
+						<Button type="submit" disabled={!key.trim() || testing || disabled}>
 							Usar chave
 						</Button>
 					</DialogFooter>

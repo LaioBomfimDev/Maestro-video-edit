@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, expect, test, spyOn } from "bun:test";
 import sharp from "sharp";
 import { POST } from "@/app/api/ai/image/route";
+import { USAGE_HEADER } from "../usage-types";
 import { GEMINI_KEY_HEADER } from "../credentials";
 const png = await sharp({
 	create: { width: 8, height: 8, channels: 3, background: "#ff0000" },
@@ -67,6 +68,7 @@ test("unapproved model names and mime types are rejected", async () => {
 test("returns a real WebP without exposing credentials", async () => {
 	fetchSpy.mockResolvedValueOnce(
 		Response.json({
+			usageMetadata: { promptTokenCount: 100, totalTokenCount: 1400 },
 			candidates: [
 				{
 					content: {
@@ -87,6 +89,10 @@ test("returns a real WebP without exposing credentials", async () => {
 	expect(r.status).toBe(200);
 	expect(r.headers.get("cache-control")).toBe("no-store");
 	expect(r.headers.get("content-type")).toBe("image/webp");
+	expect(JSON.parse(r.headers.get(USAGE_HEADER)!).attempts[0]).toMatchObject({
+		inputTokens: 100,
+		totalTokens: 1400,
+	});
 	const output = Buffer.from(await r.arrayBuffer());
 	expect(output.subarray(0, 4).toString()).toBe("RIFF");
 	expect((await sharp(output).metadata()).width).toBe(8);

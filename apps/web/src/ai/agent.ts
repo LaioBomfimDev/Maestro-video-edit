@@ -1,6 +1,7 @@
 import type { EditorCore } from "@/core";
 import { describeEditorState, executeTool } from "./tools";
-import { geminiRequestHeaders } from "./credentials";
+import { recordUsageResponse } from "./usage-store";
+import { getGeminiApiKey, geminiRequestHeaders } from "./credentials";
 import {
 	type AiActionLog,
 	type GeminiContent,
@@ -94,15 +95,17 @@ async function requestModel({
 	styleReference?: string;
 	signal: AbortSignal;
 }): Promise<GeminiContent> {
+	const apiKey = getGeminiApiKey();
 	const response = await fetch("/api/ai/chat", {
 		method: "POST",
-		headers: geminiRequestHeaders(),
+		headers: geminiRequestHeaders(apiKey),
 		body: JSON.stringify({
 			contents: compactHistory({ contents }),
 			styleReference,
 		}),
 		signal,
 	});
+	await recordUsageResponse({ response, apiKey });
 	const json: unknown = await response.json().catch(() => null);
 	if (!response.ok) {
 		const message =

@@ -2,14 +2,14 @@
   {
     "id": "whoosh",
     "name": "Passagem de ar",
-    "category": "Transi��es",
+    "category": "Transições",
     "duration": 0.7,
     "url": "/sounds/maestro/whoosh.wav"
   },
   {
     "id": "swoosh",
-    "name": "Varredura r�pida",
-    "category": "Transi��es",
+    "name": "Varredura rápida",
+    "category": "Transições",
     "duration": 0.7,
     "url": "/sounds/maestro/swoosh.wav"
   },
@@ -36,7 +36,7 @@
   },
   {
     "id": "notification",
-    "name": "Notifica��o",
+    "name": "Notificação",
     "category": "Alertas",
     "duration": 1,
     "url": "/sounds/maestro/notification.wav"
@@ -50,43 +50,43 @@
   },
   {
     "id": "riser",
-    "name": "Subida de tens�o",
-    "category": "Transi��es",
+    "name": "Subida de tensão",
+    "category": "Transições",
     "duration": 1.8,
     "url": "/sounds/maestro/riser.wav"
   },
   {
     "id": "downer",
     "name": "Descida",
-    "category": "Transi��es",
+    "category": "Transições",
     "duration": 1.8,
     "url": "/sounds/maestro/downer.wav"
   },
   {
     "id": "kick",
     "name": "Bumbo",
-    "category": "Percuss�o",
+    "category": "Percussão",
     "duration": 0.5,
     "url": "/sounds/maestro/kick.wav"
   },
   {
     "id": "snare",
     "name": "Caixa",
-    "category": "Percuss�o",
+    "category": "Percussão",
     "duration": 0.3,
     "url": "/sounds/maestro/snare.wav"
   },
   {
     "id": "hat",
     "name": "Chimbal",
-    "category": "Percuss�o",
+    "category": "Percussão",
     "duration": 0.14,
     "url": "/sounds/maestro/hat.wav"
   },
   {
     "id": "clap",
     "name": "Palma",
-    "category": "Percuss�o",
+    "category": "Percussão",
     "duration": 0.35,
     "url": "/sounds/maestro/clap.wav"
   },

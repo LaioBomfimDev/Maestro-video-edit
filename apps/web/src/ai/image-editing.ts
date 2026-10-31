@@ -1,5 +1,6 @@
 import type { EditorCore } from "@/core";
-import { geminiRequestHeaders } from "./credentials";
+import { recordUsageResponse } from "./usage-store";
+import { getGeminiApiKey, geminiRequestHeaders } from "./credentials";
 import { processMediaAssets } from "@/media/processing";
 import type { ElementRef } from "@/timeline";
 
@@ -76,12 +77,14 @@ export async function requestImageEdit({
 		reader.onerror = () => reject(new Error("Falha ao ler a foto."));
 		reader.readAsDataURL(blob);
 	});
+	const apiKey = getGeminiApiKey();
 	const response = await fetch("/api/ai/image", {
 		method: "POST",
-		headers: geminiRequestHeaders(),
+		headers: geminiRequestHeaders(apiKey),
 		signal,
 		body: JSON.stringify({ prompt, model, mimeType: blob.type, data }),
 	});
+	await recordUsageResponse({ response, apiKey });
 	if (!response.ok) {
 		const body: unknown = await response.json().catch(() => null);
 		throw new Error(

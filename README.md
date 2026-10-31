@@ -13,6 +13,14 @@ A chave fica na sessão da aba e pode ser trocada ou removida nesse mesmo painel
 
 Remoção de silêncios e legendas usam processamento local no navegador. O chat Gemini envia o pedido e o contexto necessário do projeto ao provedor.
 
+## Cota e uso do Gemini
+
+Abra **Gemini · Cota** para acompanhar os tokens informados pelo Google e as chamadas registradas nesta aba, por modelo, incluindo tentativas e erros 429. As respostas do chat e da edição de fotos atualizam o painel automaticamente; a janela de um minuto é recalculada a cada segundo enquanto ele está aberto. O painel pode ser consultado durante uma edição.
+
+A API de geração não retorna um saldo global restante nesta integração. O botão **Ver cota oficial no AI Studio** leva aos limites do projeto. Opcionalmente, copie os limites de requisições/minuto, tokens de entrada/minuto e requisições/dia para obter uma estimativa local do restante. Uso de outras abas, aplicativos ou chaves do mesmo projeto não é incluído. Um dia segue o fuso do Pacífico; uma mensagem pode fazer várias chamadas. Isso não mede saldo financeiro.
+
+Os contadores são separados por um identificador SHA-256 da chave, guardados na sessão desta aba e não incluem os pedidos, as imagens ou a chave original. Fechar a sessão ou limpar o armazenamento remove o registro local. Trocar a chave muda o histórico exibido. Respostas sem metadados de tokens são marcadas como incompletas, sem inventar saldo.
+
 ## Efeitos, transições, cortes e texto
 
 - **Efeitos:** 21 efeitos com intensidade ajustável, mais correção de cor dedicada, incluindo preto e branco, sépia, cinema retrô, luz quente/fria, vinheta e pixelização. O botão `+` aplica à seleção; sem seleção, cria uma faixa de efeito.

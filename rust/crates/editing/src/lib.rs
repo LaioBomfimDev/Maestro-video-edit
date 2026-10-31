@@ -4,6 +4,51 @@ fn valid_duration(duration: f64, requested: f64) -> bool {
     duration.is_finite() && requested.is_finite() && duration > 0.0 && requested > 0.0
 }
 
+/// Usage windows are evaluated here; the browser supplies the Pacific calendar day
+/// using its timezone database. Missing token metadata is represented by -1.
+#[unsafe(no_mangle)]
+pub extern "C" fn quota_accumulate(
+    field: u32,
+    current: f64,
+    at: f64,
+    now: f64,
+    same_day: u32,
+    input_tokens: f64,
+    total_tokens: f64,
+    status: u32,
+) -> f64 {
+    if !at.is_finite() || !now.is_finite() || at > now || !current.is_finite() {
+        return current;
+    }
+    let minute = now - at < 60_000.0;
+    let day = same_day != 0;
+    let delta = match field {
+        0 if minute => 1.0,
+        1 if minute && input_tokens >= 0.0 => input_tokens,
+        2 if day => 1.0,
+        3 if day && total_tokens >= 0.0 => total_tokens,
+        4 if minute && input_tokens < 0.0 => 1.0,
+        5 if day && total_tokens < 0.0 => 1.0,
+        6 if day && (200..300).contains(&status) => 1.0,
+        _ => 0.0,
+    };
+    current + delta
+}
+
+/// An absent limit or incomplete observations cannot produce a reliable remainder.
+#[unsafe(no_mangle)]
+pub extern "C" fn quota_remaining(limit: f64, observed: f64, incomplete: u32) -> f64 {
+    if !limit.is_finite()
+        || !observed.is_finite()
+        || limit <= 0.0
+        || observed < 0.0
+        || incomplete != 0
+    {
+        return f64::NAN;
+    }
+    (limit - observed).max(0.0)
+}
+
 /// Eighteen samples, including both endpoints and a constant middle segment.
 #[unsafe(no_mangle)]
 pub extern "C" fn transition_time(point: u32, duration: f64, requested: f64) -> f64 {
@@ -184,6 +229,51 @@ pub extern "C" fn cut_count(duration: f64, interval: f64) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn quota_windows_expire_and_do_not_include_future_requests() {
+        assert_eq!(
+            quota_accumulate(0, 0.0, 1.0, 60_000.0, 1, 10.0, 20.0, 200),
+            1.0
+        );
+        assert_eq!(
+            quota_accumulate(0, 0.0, 0.0, 60_000.0, 1, 10.0, 20.0, 200),
+            0.0
+        );
+        assert_eq!(
+            quota_accumulate(2, 0.0, 60_001.0, 60_000.0, 1, 10.0, 20.0, 200),
+            0.0
+        );
+        assert_eq!(
+            quota_accumulate(2, 0.0, 0.0, 60_000.0, 0, 10.0, 20.0, 200),
+            0.0
+        );
+    }
+    #[test]
+    fn quota_uses_input_tokens_for_tpm_and_marks_missing_usage() {
+        assert_eq!(
+            quota_accumulate(1, 0.0, 10.0, 100.0, 1, 10.0, 35.0, 200),
+            10.0
+        );
+        assert_eq!(
+            quota_accumulate(3, 0.0, 10.0, 100.0, 1, 10.0, 35.0, 200),
+            35.0
+        );
+        assert_eq!(
+            quota_accumulate(4, 0.0, 10.0, 100.0, 1, -1.0, -1.0, 429),
+            1.0
+        );
+        assert_eq!(
+            quota_accumulate(5, 0.0, 10.0, 100.0, 1, -1.0, -1.0, 429),
+            1.0
+        );
+    }
+    #[test]
+    fn quota_never_invents_a_remainder_without_limits_or_complete_usage() {
+        assert!(quota_remaining(0.0, 10.0, 0).is_nan());
+        assert!(quota_remaining(100.0, 10.0, 1).is_nan());
+        assert_eq!(quota_remaining(100.0, 10.0, 0), 90.0);
+        assert_eq!(quota_remaining(10.0, 100.0, 0), 0.0);
+    }
     #[test]
     fn short_clips_have_ordered_samples_within_bounds() {
         let times: Vec<f64> = (0..18).map(|i| transition_time(i, 10.0, 100.0)).collect();

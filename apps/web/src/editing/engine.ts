@@ -1,5 +1,16 @@
 // ABI of rust/crates/editing. Version the asset URL when its ABI changes.
 export interface EditingEngine {
+	quota_accumulate(
+		field: number,
+		current: number,
+		at: number,
+		now: number,
+		sameDay: number,
+		input: number,
+		total: number,
+		status: number,
+	): number;
+	quota_remaining(limit: number, observed: number, incomplete: number): number;
 	transition_time(point: number, duration: number, requested: number): number;
 	transition_value(
 		preset: number,
@@ -26,18 +37,27 @@ export function loadEditingEngine(): Promise<EditingEngine> {
 					await response.arrayBuffer(),
 					{},
 				);
-				const { transition_time, transition_value, cut_count } =
-					instance.exports;
+				const {
+					transition_time,
+					transition_value,
+					cut_count,
+					quota_accumulate,
+					quota_remaining,
+				} = instance.exports;
 				if (
 					typeof transition_time !== "function" ||
 					typeof transition_value !== "function" ||
-					typeof cut_count !== "function"
+					typeof cut_count !== "function" ||
+					typeof quota_accumulate !== "function" ||
+					typeof quota_remaining !== "function"
 				)
 					throw new Error("Módulo de edição incompatível.");
 				return {
 					transition_time: (...args) => Number(transition_time(...args)),
 					transition_value: (...args) => Number(transition_value(...args)),
 					cut_count: (...args) => Number(cut_count(...args)),
+					quota_accumulate: (...args) => Number(quota_accumulate(...args)),
+					quota_remaining: (...args) => Number(quota_remaining(...args)),
 				} satisfies EditingEngine;
 			})
 			.catch((error: unknown) => {

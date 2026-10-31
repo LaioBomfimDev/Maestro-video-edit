@@ -1,3 +1,5 @@
+import { captureAttempt, usageHeaders } from "@/ai/server/usage";
+import type { UsageAttempt } from "@/ai/usage-types";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { webEnv } from "@/env/web";
@@ -28,22 +30,28 @@ const geminiResponseSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+	const attempts: UsageAttempt[] = [];
+	const reply = ({ body, status = 200 }: { body: unknown; status?: number }) =>
+		NextResponse.json(body, { status, headers: usageHeaders(attempts) });
 	const credentials = resolveGeminiApiKey(request, webEnv.GEMINI_API_KEY);
 	if ("error" in credentials) {
-		return NextResponse.json(
-			{ error: credentials.error },
-			{ status: credentials.status },
-		);
+		return reply({
+			body: { error: credentials.error },
+			status: credentials.status,
+		});
 	}
 	const { apiKey } = credentials;
 
 	const body = await request.json().catch(() => null);
 	const parsed = chatRequestSchema.safeParse(body);
 	if (!parsed.success) {
-		return NextResponse.json(
-			{ error: "Invalid input", details: parsed.error.flatten().fieldErrors },
-			{ status: 400 },
-		);
+		return reply({
+			body: {
+				error: "Invalid input",
+				details: parsed.error.flatten().fieldErrors,
+			},
+			status: 400,
+		});
 	}
 
 	const { contents, styleReference } = parsed.data;
@@ -69,8 +77,10 @@ export async function POST(request: NextRequest) {
 	].filter((model, index, list) => model && list.indexOf(model) === index);
 
 	let upstream: Response | null = null;
+	let upstreamJson: unknown = null;
 	let networkError: unknown = null;
 	for (const model of models) {
+		const at = Date.now();
 		const attempt = await fetch(
 			`${GEMINI_API_URL}/models/${encodeURIComponent(model)}:generateContent`,
 			{
@@ -84,9 +94,14 @@ export async function POST(request: NextRequest) {
 			},
 		).catch((error: unknown) => error);
 		if (!(attempt instanceof Response)) {
+			attempts.push(captureAttempt({ model, at }));
 			networkError = attempt;
 			continue;
 		}
+		upstreamJson = await attempt.json().catch(() => null);
+		attempts.push(
+			captureAttempt({ model, at, response: attempt, body: upstreamJson }),
+		);
 		upstream = attempt;
 		if (!RETRYABLE_STATUSES.has(attempt.status)) break;
 	}
@@ -95,43 +110,43 @@ export async function POST(request: NextRequest) {
 		const timedOut =
 			networkError instanceof DOMException &&
 			networkError.name === "TimeoutError";
-		return NextResponse.json(
-			{ error: timedOut ? "Gemini timed out" : "Could not reach Gemini" },
-			{ status: 504 },
-		);
+		return reply({
+			body: { error: timedOut ? "Gemini timed out" : "Could not reach Gemini" },
+			status: 504,
+		});
 	}
 
-	const json = await upstream.json().catch(() => null);
+	const json = upstreamJson;
 	const data = geminiResponseSchema.safeParse(json);
 
 	if (upstream.status === 401 || upstream.status === 403) {
-		return NextResponse.json(
-			{
+		return reply({
+			body: {
 				error:
 					"O Gemini recusou esta chave. Confira ou troque a chave no botão Gemini.",
 			},
-			{ status: upstream.status },
-		);
+			status: upstream.status,
+		});
 	}
 
 	if (upstream.status === 429) {
-		return NextResponse.json(
-			{
+		return reply({
+			body: {
 				error:
-					"Cota do Gemini esgotada (limite de requisições da sua chave). Tente novamente mais tarde ou use uma chave com mais cota.",
+					"O Gemini atingiu um limite de uso (429). Consulte Gemini · Cota e o AI Studio, aguarde ou revise os limites do projeto.",
 			},
-			{ status: 429 },
-		);
+			status: 429,
+		});
 	}
 
 	if (!upstream.ok || !data.success) {
 		const message = data.success
 			? (data.data.error?.message ?? upstream.statusText)
 			: "Unexpected response from Gemini";
-		return NextResponse.json(
-			{ error: redactApiKey(message, apiKey) },
-			{ status: 502 },
-		);
+		return reply({
+			body: { error: redactApiKey(message, apiKey) },
+			status: 502,
+		});
 	}
 
 	const candidate = data.data.candidates?.[0];
@@ -140,13 +155,15 @@ export async function POST(request: NextRequest) {
 			data.data.promptFeedback?.blockReason ??
 			candidate?.finishReason ??
 			"empty response";
-		return NextResponse.json(
-			{ error: `Gemini returned no content (${reason})` },
-			{ status: 502 },
-		);
+		return reply({
+			body: { error: `Gemini returned no content (${reason})` },
+			status: 502,
+		});
 	}
 
-	return NextResponse.json({
-		content: { role: "model", parts: candidate.content.parts ?? [] },
+	return reply({
+		body: {
+			content: { role: "model", parts: candidate.content.parts ?? [] },
+		},
 	});
 }

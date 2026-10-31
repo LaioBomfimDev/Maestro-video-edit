@@ -1,3 +1,5 @@
+import { captureAttempt, usageHeaders } from "@/ai/server/usage";
+import type { UsageAttempt } from "@/ai/usage-types";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import sharp from "sharp";
@@ -40,10 +42,15 @@ const providerSchema = z.object({
 		)
 		.optional(),
 });
-const error = ({ message, status }: { message: string; status: number }) =>
-	NextResponse.json({ error: message }, { status, headers });
 
 export async function POST(request: Request) {
+	const attempts: UsageAttempt[] = [];
+	const error = ({ message, status }: { message: string; status: number }) =>
+		NextResponse.json(
+			{ error: message },
+			{ status, headers: usageHeaders(attempts) },
+		);
+
 	const credentials = resolveGeminiApiKey(request);
 	if (!credentials.apiKey)
 		return error({
@@ -56,6 +63,7 @@ export async function POST(request: Request) {
 			status: 413,
 		});
 	let input: z.infer<typeof schema>;
+	let startedAt: number | undefined;
 	try {
 		const text = await request.text();
 		if (text.length > 3_000_000)
@@ -91,6 +99,7 @@ export async function POST(request: Request) {
 		});
 	}
 	try {
+		startedAt = Date.now();
 		const upstream = await fetch(
 			`https://generativelanguage.googleapis.com/v1/models/${input.model}:generateContent`,
 			{
@@ -114,6 +123,15 @@ export async function POST(request: Request) {
 					generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
 				}),
 			},
+		);
+		const payload: unknown = await upstream.json().catch(() => null);
+		attempts.push(
+			captureAttempt({
+				model: input.model,
+				at: startedAt,
+				response: upstream,
+				body: payload,
+			}),
 		);
 		if (!upstream.ok) {
 			if (upstream.status === 429)
@@ -139,7 +157,7 @@ export async function POST(request: Request) {
 				status: 502,
 			});
 		}
-		const parsed = providerSchema.safeParse(await upstream.json());
+		const parsed = providerSchema.safeParse(payload);
 		const image = parsed.success
 			? parsed.data.candidates?.[0]?.content?.parts.find(
 					(part) => part.inlineData,
@@ -172,11 +190,14 @@ export async function POST(request: Request) {
 		return new Response(new Uint8Array(output), {
 			headers: {
 				...headers,
+				...usageHeaders(attempts),
 				"Content-Type": "image/webp",
 				"X-Content-Type-Options": "nosniff",
 			},
 		});
 	} catch {
+		if (startedAt !== undefined && !attempts.length)
+			attempts.push(captureAttempt({ model: input.model, at: startedAt }));
 		return error({
 			message:
 				"Não foi possível concluir a edição. Verifique sua conexão e tente novamente.",
