@@ -563,8 +563,8 @@ describe("resolveTrackPlacement", () => {
 					id: "audio-1",
 					type: "audio",
 					elements: [
-						buildElement({ id: "a", type: "audio", startTime: 0, duration: 2 }),
-						buildElement({ id: "b", type: "audio", startTime: 5, duration: 2 }),
+						buildElement({ id: "a", type: "audio", startTime: 0, duration: 20 }),
+						buildElement({ id: "b", type: "audio", startTime: 50, duration: 20 }),
 					],
 				}),
 			],
@@ -575,8 +575,8 @@ describe("resolveTrackPlacement", () => {
 				tracks,
 				elementType: "audio",
 				timeSpans: [
-					buildTimeSpan({ startTime: 2.5, duration: 1 }),
-					buildTimeSpan({ startTime: 5.5, duration: 1 }),
+					buildTimeSpan({ startTime: 25, duration: 10 }),
+					buildTimeSpan({ startTime: 55, duration: 10 }),
 				],
 				strategy: { type: "firstAvailable" },
 			}),

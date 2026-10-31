@@ -135,6 +135,16 @@ docker compose up -d
 
 The app will be available at [http://localhost:3100](http://localhost:3100).
 
+### Deploying to Vercel
+
+See the [Vercel deployment guide](docs/vercel.md). Set the Vercel project's Root
+Directory to `apps/web`, where `vercel.json` configures the Next.js build.
+
+### Running tests
+
+Run `bun run test` from the repository root. This initializes the real WebAssembly
+module and a headless canvas before running the web test suite.
+
 ## Contributing
 
 We welcome contributions! While we're actively developing and refactoring certain areas, there are plenty of opportunities to contribute effectively.

@@ -1,0 +1,72 @@
+# Deploy do Maestro na Vercel
+
+O aplicativo Next.js está em `apps/web`. A configuração está em
+`apps/web/vercel.json`; ela usa Bun, instala as versões do `bun.lock` e executa
+o build do Next.js.
+
+## Configuração do projeto
+
+1. Importe este repositório na Vercel.
+2. Defina **Root Directory** como `apps/web` e **Framework Preset** como Next.js.
+3. Mantenha habilitada a inclusão de arquivos de fora da Root Directory, pois o
+   `package.json` dos workspaces e o `bun.lock` ficam na raiz do repositório.
+4. Cadastre as variáveis de ambiente abaixo nos ambientes desejados.
+5. Para testar o assistente antes de integrar a branch à `main`, publique uma
+   Preview da branch que contém o código do assistente.
+
+Não use `bun deploy:web` para esse deploy: esse script é destinado ao Cloudflare.
+O `vercel.json` já seleciona `bun run build`.
+
+## Variáveis de ambiente
+
+Cadastre os valores no painel da Vercel. Não envie arquivos `.env.local` ao Git.
+
+| Variável | Valor esperado |
+| --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | URL HTTPS do site |
+| `NEXT_PUBLIC_MARBLE_API_URL` | `https://api.marblecms.com` |
+| `DATABASE_URL` | URL de um PostgreSQL acessível pelo servidor |
+| `BETTER_AUTH_SECRET` | Segredo próprio da instalação |
+| `UPSTASH_REDIS_REST_URL` | URL HTTPS do Redis REST |
+| `UPSTASH_REDIS_REST_TOKEN` | Token do Redis REST |
+| `MARBLE_WORKSPACE_KEY` | Chave do workspace do blog |
+| `FREESOUND_CLIENT_ID` | ID do cliente Freesound |
+| `FREESOUND_API_KEY` | Chave da API Freesound |
+| `GEMINI_API_KEY` | Chave do Gemini, necessária para o chat por IA |
+| `GEMINI_MODEL` | Opcional; modelo principal definido em `.env.example` |
+| `GEMINI_FALLBACK_MODELS` | Opcional; modelos alternativos separados por vírgula |
+| `GEMINI_THINKING_LEVEL` | Opcional; `minimal`, `low`, `medium`, `high` ou `off` |
+
+O validador atual exige as variáveis dos serviços do app, mesmo quando algumas
+integrações não são usadas. O build não depende de `GEMINI_API_KEY`; o chat retorna
+um erro de configuração quando a chave não está disponível no servidor. Os
+botões de remoção de silêncios e legendas executam no navegador.
+
+Não defina `NODE_ENV=development` na Vercel. Para um teste local, copie
+`apps/web/.env.example` para `apps/web/.env.local` e ajuste os valores.
+
+A rota do chat declara `maxDuration = 300` para acomodar as tentativas de 90
+segundos do modelo principal e dos dois modelos alternativos padrão. Use Fluid
+Compute para esse limite; uma lista maior de modelos pode ultrapassar o orçamento
+da função.
+
+## Verificação local
+
+Execute da raiz do repositório:
+
+```sh
+bun install --frozen-lockfile
+bun run test
+bun run build:web
+```
+
+O build usa o pacote WASM publicado em `opencut-wasm`; não é necessário compilar
+Rust para publicar o site sem alterações no núcleo Rust.
+
+Use `bun run test`, pois o script prepara o módulo WebAssembly real e o canvas
+necessário aos testes de texto. O CI executa esse mesmo comando e falha se algum
+teste falhar.
+
+Referências: [monorepos na Vercel](https://vercel.com/docs/monorepos),
+[configuração do vercel.json](https://vercel.com/docs/project-configuration/vercel-json)
+e [duração das funções](https://vercel.com/docs/functions/configuring-functions/duration).

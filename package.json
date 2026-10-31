@@ -20,7 +20,7 @@
     "preview:web": "turbo run preview --filter=@opencut/web",
     "publish:wasm": "bun run build:wasm && npm publish rust/wasm/pkg --access public",
     "start:tools": "turbo run start --filter=@opencut/tools",
-    "test": "bun test"
+    "test": "bun run --cwd apps/web test"
   },
   "dependencies": {
     "@types/react": "^19.2.10",

@@ -5,6 +5,9 @@ import { AI_TOOL_DECLARATIONS } from "@/ai/declarations";
 import { buildSystemPrompt } from "@/ai/system-prompt";
 import { chatRequestSchema, geminiContentSchema } from "@/ai/types";
 
+// Allow the primary model and two 90-second fallback attempts on Vercel.
+export const maxDuration = 300;
+
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta";
 const GEMINI_TIMEOUT_MS = 90_000;
 // Rate limit / overload / model unavailable: try the next model in the chain.
