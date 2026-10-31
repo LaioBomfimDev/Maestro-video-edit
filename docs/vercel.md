@@ -10,7 +10,7 @@ o build do Next.js.
 2. Defina **Root Directory** como `apps/web` e **Framework Preset** como Next.js.
 3. Mantenha habilitada a inclusão de arquivos de fora da Root Directory, pois o
    `package.json` dos workspaces e o `bun.lock` ficam na raiz do repositório.
-4. Cadastre as variáveis de ambiente abaixo nos ambientes desejados.
+4. Cadastre apenas as variáveis das integrações que deseja ativar.
 5. Para testar o assistente antes de integrar a branch à `main`, publique uma
    Preview da branch que contém o código do assistente.
 
@@ -19,7 +19,9 @@ O `vercel.json` já seleciona `bun run build`.
 
 ## Variáveis de ambiente
 
-Cadastre os valores no painel da Vercel. Não envie arquivos `.env.local` ao Git.
+O editor local funciona sem credenciais de serviços externos. Cadastre os valores
+das integrações desejadas no painel da Vercel; não envie arquivos `.env.local` ao
+Git e não use credenciais fictícias em produção.
 
 | Variável | Valor esperado |
 | --- | --- |
@@ -37,10 +39,19 @@ Cadastre os valores no painel da Vercel. Não envie arquivos `.env.local` ao Git
 | `GEMINI_FALLBACK_MODELS` | Opcional; modelos alternativos separados por vírgula |
 | `GEMINI_THINKING_LEVEL` | Opcional; `minimal`, `low`, `medium`, `high` ou `off` |
 
-O validador atual exige as variáveis dos serviços do app, mesmo quando algumas
-integrações não são usadas. O build não depende de `GEMINI_API_KEY`; o chat retorna
-um erro de configuração quando a chave não está disponível no servidor. Os
-botões de remoção de silêncios e legendas executam no navegador.
+As variáveis de serviços são opcionais para o build. Valores preenchidos continuam
+sendo validados. Sem as credenciais correspondentes:
+
+- Login fica indisponível com HTTP 503. Para ativá-lo, configure PostgreSQL,
+  `BETTER_AUTH_SECRET`, Redis REST e a URL pública do site.
+- Feedback fica indisponível com HTTP 503 sem PostgreSQL ou Redis REST.
+- Busca de sons fica indisponível com HTTP 503 sem `FREESOUND_API_KEY` ou Redis
+  REST. A proteção de limite de requisições é mantida nos serviços habilitados.
+- Blog fica vazio sem `MARBLE_WORKSPACE_KEY`.
+- Chat por IA retorna HTTP 503 sem `GEMINI_API_KEY`.
+
+Os projetos e a edição de mídia usam o armazenamento do navegador. Os botões de
+remoção de silêncios e legendas também executam no navegador.
 
 Não defina `NODE_ENV=development` na Vercel. Para um teste local, copie
 `apps/web/.env.example` para `apps/web/.env.local` e ajuste os valores.
@@ -65,7 +76,8 @@ Rust para publicar o site sem alterações no núcleo Rust.
 
 Use `bun run test`, pois o script prepara o módulo WebAssembly real e o canvas
 necessário aos testes de texto. O CI executa esse mesmo comando e falha se algum
-teste falhar.
+teste falhar. O build do CI não usa credenciais de serviços externos, para cobrir
+o deploy inicial de uma instalação sem integrações.
 
 Referências: [monorepos na Vercel](https://vercel.com/docs/monorepos),
 [configuração do vercel.json](https://vercel.com/docs/project-configuration/vercel-json)

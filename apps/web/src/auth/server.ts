@@ -1,43 +1,60 @@
 import { betterAuth, type RateLimit } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { Redis } from "@upstash/redis";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { webEnv } from "@/env/web";
 
-const redis = new Redis({
-	url: webEnv.UPSTASH_REDIS_REST_URL,
-	token: webEnv.UPSTASH_REDIS_REST_TOKEN,
-});
-
-export const auth = betterAuth({
-	database: drizzleAdapter(db, {
-		provider: "pg",
-		usePlural: true,
-	}),
-	secret: webEnv.BETTER_AUTH_SECRET,
-	user: {
-		deleteUser: {
+function createConfiguredAuth() {
+	const {
+		DATABASE_URL,
+		BETTER_AUTH_SECRET,
+		UPSTASH_REDIS_REST_URL,
+		UPSTASH_REDIS_REST_TOKEN,
+	} = webEnv;
+	if (
+		!DATABASE_URL ||
+		!BETTER_AUTH_SECRET ||
+		!UPSTASH_REDIS_REST_URL ||
+		!UPSTASH_REDIS_REST_TOKEN
+	) {
+		return null;
+	}
+	const redis = new Redis({
+		url: UPSTASH_REDIS_REST_URL,
+		token: UPSTASH_REDIS_REST_TOKEN,
+	});
+	return betterAuth({
+		database: drizzleAdapter(getDb(), {
+			provider: "pg",
+			usePlural: true,
+		}),
+		secret: BETTER_AUTH_SECRET,
+		user: {
+			deleteUser: {
+				enabled: true,
+			},
+		},
+		emailAndPassword: {
 			enabled: true,
 		},
-	},
-	emailAndPassword: {
-		enabled: true,
-	},
-	rateLimit: {
-		storage: "secondary-storage",
-		customStorage: {
-			get: async (key) => {
-				const value = await redis.get(key);
-				return value as RateLimit | undefined;
-			},
-			set: async (key, value) => {
-				await redis.set(key, value);
+		rateLimit: {
+			storage: "secondary-storage",
+			customStorage: {
+				get: async (key) => {
+					const value = await redis.get(key);
+					return value as RateLimit | undefined;
+				},
+				set: async (key, value) => {
+					await redis.set(key, value);
+				},
 			},
 		},
-	},
-	baseURL: webEnv.NEXT_PUBLIC_SITE_URL,
-	appName: "OpenCut",
-	trustedOrigins: [webEnv.NEXT_PUBLIC_SITE_URL],
-});
+		baseURL: webEnv.NEXT_PUBLIC_SITE_URL,
+		appName: "OpenCut",
+		trustedOrigins: [webEnv.NEXT_PUBLIC_SITE_URL],
+	});
+}
 
-export type Auth = typeof auth;
+export const auth = createConfiguredAuth();
+
+export type Auth = NonNullable<typeof auth>;

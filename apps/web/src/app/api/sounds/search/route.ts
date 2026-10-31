@@ -149,7 +149,19 @@ function transformFreesoundResult(
 
 export async function GET(request: NextRequest) {
 	try {
-		const { limited } = await checkRateLimit({ request });
+		if (!webEnv.FREESOUND_API_KEY) {
+			return NextResponse.json(
+				{ error: "Freesound is not configured on the server." },
+				{ status: 503 },
+			);
+		}
+		const { limited, unavailable } = await checkRateLimit({ request });
+		if (unavailable) {
+			return NextResponse.json(
+				{ error: "Sound search rate limiting is not configured on the server." },
+				{ status: 503 },
+			);
+		}
 		if (limited) {
 			return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 		}
