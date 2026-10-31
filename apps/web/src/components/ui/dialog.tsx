@@ -54,7 +54,7 @@ const DialogContent = React.forwardRef<
 		<DialogPrimitive.Content
 			ref={ref}
 			className={cn(
-				"bg-popover fixed top-[50%] left-[50%] z-250 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-lg border shadow-lg duration-200",
+				"app-dialog bg-popover fixed top-[50%] left-[50%] z-250 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-lg border shadow-lg duration-200",
 				className,
 			)}
 			onCloseAutoFocus={(e) => {
@@ -64,7 +64,7 @@ const DialogContent = React.forwardRef<
 			{...props}
 		>
 			{children}
-			<DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-6 right-6 cursor-pointer opacity-70 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+			<DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-3 right-3 size-11 flex items-center justify-center lg:top-6 lg:right-6 lg:size-5 cursor-pointer opacity-70 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
 				<X className="size-5 text-muted-foreground" />
 				<span className="sr-only">Close</span>
 			</DialogPrimitive.Close>
@@ -78,7 +78,10 @@ const DialogHeader = ({
 	...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
 	<div
-		className={cn("flex flex-col space-y-2 text-left border-b p-6", className)}
+		className={cn(
+			"flex flex-col space-y-2 text-left border-b p-4 pr-14 lg:p-6 lg:pr-14",
+			className,
+		)}
 		{...props}
 	/>
 );
@@ -88,7 +91,10 @@ const DialogBody = ({
 	className,
 	...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
-	<div className={cn("p-6 flex flex-col gap-4", className)} {...props} />
+	<div
+		className={cn("p-4 lg:p-6 min-w-0 flex flex-col gap-4", className)}
+		{...props}
+	/>
 );
 DialogBody.displayName = "DialogBody";
 

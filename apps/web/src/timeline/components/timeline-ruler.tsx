@@ -1,4 +1,5 @@
 import { type JSX } from "react";
+import { useCompactEditor } from "@/hooks/use-compact-editor";
 import { BASE_TIMELINE_PIXELS_PER_SECOND } from "@/timeline/scale";
 import { mediaTimeToSeconds } from "opencut-wasm";
 import { TICKS_PER_SECOND } from "@/wasm";
@@ -30,6 +31,8 @@ export function TimelineRuler({
 	handleRulerTrackingMouseDown,
 	handleRulerMouseDown,
 }: TimelineRulerProps) {
+	const compact = useCompactEditor();
+	const rulerHeight = compact ? 44 : TIMELINE_RULER_HEIGHT_PX;
 	const durationTicks = useEditor((e) => e.timeline.getTotalDuration());
 	const durationSeconds = mediaTimeToSeconds({ time: durationTicks });
 	const pixelsPerSecond = BASE_TIMELINE_PIXELS_PER_SECOND * zoomLevel;
@@ -106,7 +109,7 @@ export function TimelineRuler({
 			aria-valuemax={effectiveDurationSeconds}
 			aria-valuenow={0}
 			className="relative flex-1 overflow-x-visible"
-			style={{ height: TIMELINE_RULER_HEIGHT_PX }}
+			style={{ height: rulerHeight }}
 			onWheel={handleWheel}
 			onClick={(event) => {
 				// Ruler seek already happens on mousedown via playhead scrubbing.
@@ -121,10 +124,14 @@ export function TimelineRuler({
 			<div
 				role="none"
 				ref={rulerRef}
-				className="relative cursor-default select-none"
+				className="timeline-touch-ruler relative cursor-default select-none touch-none"
 				style={{
-					height: TIMELINE_RULER_HEIGHT_PX,
+					height: rulerHeight,
 					width: `${dynamicTimelineWidth}px`,
+				}}
+				onPointerDown={(event) => {
+					if (event.pointerType !== "mouse" && event.isPrimary)
+						handleRulerMouseDown(event);
 				}}
 				onMouseDown={handleRulerMouseDown}
 			>

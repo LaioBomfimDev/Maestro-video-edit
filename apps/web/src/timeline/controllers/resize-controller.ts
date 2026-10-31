@@ -1,4 +1,5 @@
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { listenForDrag } from "@/hooks/drag-events";
 import { BASE_TIMELINE_PIXELS_PER_SECOND } from "@/timeline/scale";
 import {
 	addMediaTime,
@@ -112,7 +113,8 @@ export function buildResizeMembers({
 		const rightNeighborBound = otherElements
 			.filter(
 				(el) =>
-					el.startTime >= addMediaTime({ a: element.startTime, b: element.duration }),
+					el.startTime >=
+					addMediaTime({ a: element.startTime, b: element.duration }),
 			)
 			.reduce<MediaTime | null>(
 				(bound, el) =>
@@ -161,6 +163,7 @@ function hasResizeChanges({
 
 export class ResizeController {
 	private session: Session = { kind: "idle" };
+	private cleanupDrag: (() => void) | null = null;
 	private readonly subscribers = new Set<() => void>();
 	private readonly configRef: ResizeConfigRef;
 
@@ -190,7 +193,7 @@ export class ResizeController {
 	}
 
 	destroy(): void {
-		this.deactivate();
+		this.cancel();
 		this.subscribers.clear();
 	}
 
@@ -238,18 +241,23 @@ export class ResizeController {
 			members,
 			result: null,
 		};
-		this.activate();
+		this.activate(event);
 		this.notify();
 	}
 
-	private activate(): void {
-		document.addEventListener("mousemove", this.handleMouseMove);
-		document.addEventListener("mouseup", this.handleMouseUp);
+	private activate(event: ReactMouseEvent): void {
+		this.cleanupDrag?.();
+		this.cleanupDrag = listenForDrag({
+			source: event.nativeEvent,
+			onMove: this.handleMouseMove,
+			onEnd: this.handleMouseUp,
+			onCancel: () => this.cancel(),
+		});
 	}
 
 	private deactivate(): void {
-		document.removeEventListener("mousemove", this.handleMouseMove);
-		document.removeEventListener("mouseup", this.handleMouseUp);
+		this.cleanupDrag?.();
+		this.cleanupDrag = null;
 	}
 
 	private notify(): void {
@@ -314,7 +322,10 @@ export class ResizeController {
 			) {
 				closestSnapDistance = snapResult.snapDistance;
 				closestSnapPoint = snapResult.snapPoint;
-				deltaTime = subMediaTime({ a: snapResult.snappedTime, b: baseEdgeTime });
+				deltaTime = subMediaTime({
+					a: snapResult.snappedTime,
+					b: baseEdgeTime,
+				});
 			}
 		}
 

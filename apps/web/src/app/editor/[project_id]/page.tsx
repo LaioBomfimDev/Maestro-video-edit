@@ -16,7 +16,8 @@ import { Onboarding } from "@/components/editor/onboarding";
 import { MigrationDialog } from "@/project/components/migration-dialog";
 import { usePanelStore } from "@/editor/panel-store";
 import { usePasteMedia } from "@/media/use-paste-media";
-import { MobileGate } from "@/components/editor/mobile-gate";
+import { CompactEditorLayout } from "@/components/editor/compact-layout";
+import { useCompactEditor } from "@/hooks/use-compact-editor";
 import { useMemo, useState } from "react";
 import { useEditor } from "@/editor/use-editor";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
@@ -36,24 +37,22 @@ import {
 } from "@/timeline/bookmarks/index";
 
 export default function Editor() {
-	const params = useParams();
-	const projectId = params.project_id as string;
+	const params = useParams<{ project_id: string }>();
+	const projectId = params.project_id;
 
 	return (
-		<MobileGate>
-			<EditorProvider projectId={projectId}>
-				<div className="bg-background flex h-screen w-screen flex-col overflow-hidden">
-					<DegradedRendererBanner />
-					<EditorHeader />
-					<div className="min-h-0 min-w-0 flex-1">
-						<EditorLayout />
-					</div>
-					<Onboarding />
-					<MigrationDialog />
-					<ChangelogNotification />
+		<EditorProvider projectId={projectId}>
+			<div className="editor-shell bg-background flex w-full flex-col overflow-hidden">
+				<DegradedRendererBanner />
+				<EditorHeader />
+				<div className="min-h-0 min-w-0 flex-1">
+					<EditorLayout />
 				</div>
-			</EditorProvider>
-		</MobileGate>
+				<Onboarding />
+				<MigrationDialog />
+				<ChangelogNotification />
+			</div>
+		</EditorProvider>
 	);
 }
 
@@ -80,6 +79,7 @@ function DegradedRendererBanner() {
 
 function EditorLayout() {
 	usePasteMedia();
+	const compact = useCompactEditor();
 	const { panels, setPanel } = usePanelStore();
 	const activeScene = useEditor((editor) =>
 		editor.scenes.getActiveSceneOrNull(),
@@ -124,6 +124,21 @@ function EditorLayout() {
 			),
 		[overlaySource.definitions, overlays],
 	);
+
+	if (compact) {
+		return (
+			<CompactEditorLayout
+				preview={
+					<PreviewPanel
+						overlayControls={overlayControls}
+						overlayInstances={overlaySource.instances}
+						onOverlayVisibilityChange={setOverlayVisibility}
+					/>
+				}
+				timeline={<Timeline />}
+			/>
+		);
+	}
 
 	return (
 		<ResizablePanelGroup

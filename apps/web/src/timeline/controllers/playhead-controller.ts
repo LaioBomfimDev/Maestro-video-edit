@@ -1,4 +1,5 @@
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { listenForDrag } from "@/hooks/drag-events";
 import type { FrameRate } from "opencut-wasm";
 import {
 	mediaTime,
@@ -98,6 +99,7 @@ export class PlayheadController {
 	private lastMouseClientX = 0;
 
 	private session: Session = { kind: "idle" };
+	private cleanupDrag: (() => void) | null = null;
 	private readonly configRef: PlayheadConfigRef;
 
 	constructor(deps: { configRef: PlayheadConfigRef }) {
@@ -121,6 +123,7 @@ export class PlayheadController {
 	}
 
 	destroy(): void {
+		this.config.setScrubbing(false);
 		this.deactivate();
 	}
 
@@ -137,12 +140,16 @@ export class PlayheadController {
 		};
 		this.config.setScrubbing(true);
 		this.scrub({ event, isElementSnappingEnabled: true });
-		this.activate();
+		this.activate(event);
 	}
 
 	onRulerMouseDown(event: ReactMouseEvent): void {
 		if (event.button !== 0) return;
-		if (this.config.getPlayheadEl()?.contains(event.target as Node)) return;
+		if (
+			event.target instanceof Node &&
+			this.config.getPlayheadEl()?.contains(event.target)
+		)
+			return;
 
 		event.preventDefault();
 		this.session = {
@@ -154,7 +161,7 @@ export class PlayheadController {
 		this.config.setScrubbing(true);
 		// No element-edge snapping on initial ruler click — avoids a jarring jump.
 		this.scrub({ event, isElementSnappingEnabled: false });
-		this.activate();
+		this.activate(event);
 	}
 
 	// --- Public non-session methods ---
@@ -214,14 +221,23 @@ export class PlayheadController {
 
 	// --- Private ---
 
-	private activate(): void {
-		window.addEventListener("mousemove", this.handleMouseMove);
-		window.addEventListener("mouseup", this.handleMouseUp);
+	private activate(event: ReactMouseEvent): void {
+		this.cleanupDrag?.();
+		this.cleanupDrag = listenForDrag({
+			source: event.nativeEvent,
+			onMove: this.handleMouseMove,
+			onEnd: this.handleMouseUp,
+			onCancel: () => {
+				this.session = { kind: "idle" };
+				this.config.setScrubbing(false);
+				this.deactivate();
+			},
+		});
 	}
 
 	private deactivate(): void {
-		window.removeEventListener("mousemove", this.handleMouseMove);
-		window.removeEventListener("mouseup", this.handleMouseUp);
+		this.cleanupDrag?.();
+		this.cleanupDrag = null;
 	}
 
 	/**

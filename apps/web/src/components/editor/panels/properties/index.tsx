@@ -34,7 +34,7 @@ export function PropertiesPanel() {
 		return (
 			<div className="panel bg-background flex h-full flex-col items-center justify-center overflow-hidden rounded-sm border">
 				<p className="text-muted-foreground text-sm">
-					{selectedElements.length} elements selected.0
+					{selectedElements.length} elementos selecionados
 				</p>
 			</div>
 		);
@@ -62,9 +62,9 @@ export function PropertiesPanel() {
 	if (!activeTab) return null;
 
 	return (
-		<div className="panel bg-background flex h-full overflow-hidden rounded-sm border">
+		<div className="panel bg-background flex h-full min-h-0 flex-col lg:flex-row overflow-hidden rounded-sm border">
 			<TooltipProvider delayDuration={0}>
-				<div className="flex shrink-0 flex-col gap-0.5 border-r p-1 scrollbar-hidden overflow-y-auto">
+				<div className="flex shrink-0 gap-1 border-b lg:border-b-0 lg:border-r p-1 scrollbar-thin overflow-x-auto lg:overflow-y-auto lg:flex-col">
 					{visibleTabs.map((tab) => (
 						<Tooltip key={tab.id}>
 							<TooltipTrigger asChild>
@@ -78,13 +78,15 @@ export function PropertiesPanel() {
 										})
 									}
 									aria-label={tab.label}
+									aria-pressed={tab.id === activeTab.id}
 									className={cn(
 										"shrink-0",
-										"h-8 w-8",
+										"h-12 w-auto px-3 flex-col gap-1 text-[10px] lg:h-8 lg:w-8 lg:px-0",
 										tab.id !== activeTab.id && "text-muted-foreground",
 									)}
 								>
 									{tab.icon}
+									<span className="lg:hidden">{tab.label}</span>
 								</Button>
 							</TooltipTrigger>
 							<TooltipContent side="right">{tab.label}</TooltipContent>
@@ -92,7 +94,7 @@ export function PropertiesPanel() {
 					))}
 				</div>
 			</TooltipProvider>
-			<ScrollArea className="flex-1 scrollbar-hidden">
+			<ScrollArea className="min-h-0 min-w-0 flex-1 scrollbar-thin">
 				{activeTab.content({ trackId: track.id })}
 			</ScrollArea>
 		</div>

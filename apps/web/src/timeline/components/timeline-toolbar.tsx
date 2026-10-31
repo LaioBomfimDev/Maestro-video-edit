@@ -68,8 +68,8 @@ export function TimelineToolbar({
 	};
 
 	return (
-		<ScrollArea className="scrollbar-hidden">
-			<div className="flex h-10 items-center justify-between border-b px-2 py-1">
+		<ScrollArea className="timeline-toolbar shrink-0 scrollbar-thin">
+			<div className="flex h-14 lg:h-10 min-w-max items-center justify-between gap-4 border-b px-2 py-1">
 				<ToolbarLeftSection />
 
 				<SceneSelector />
@@ -304,6 +304,8 @@ function ToolbarRightSection({
 				<Button
 					variant="text"
 					size="icon"
+					aria-label="Diminuir zoom da timeline"
+					className="size-11 lg:size-7"
 					onClick={() => onZoom({ direction: "out" })}
 				>
 					<HugeiconsIcon icon={SearchMinusIcon} />
@@ -321,6 +323,8 @@ function ToolbarRightSection({
 				<Button
 					variant="text"
 					size="icon"
+					aria-label="Aumentar zoom da timeline"
+					className="size-11 lg:size-7"
 					onClick={() => onZoom({ direction: "in" })}
 				>
 					<HugeiconsIcon icon={SearchAddIcon} />
@@ -350,9 +354,10 @@ function ToolbarButton({
 			variant={isActive ? "secondary" : "text"}
 			size="icon"
 			disabled={disabled}
+			aria-label={tooltip}
 			onClick={onClick ? (event) => onClick({ event }) : undefined}
 			className={cn(
-				"rounded-sm",
+				"rounded-sm size-11 lg:size-7",
 				disabled ? "cursor-not-allowed opacity-50" : "",
 			)}
 		>

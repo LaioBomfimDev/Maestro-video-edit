@@ -45,11 +45,17 @@ export function TabBar() {
 		};
 	}, [checkScrollPosition]);
 
+	useEffect(() => {
+		scrollRef.current
+			?.querySelector('[aria-pressed="true"]')
+			?.scrollIntoView({ block: "nearest", inline: "nearest" });
+	}, [activeTab]);
+
 	return (
-		<div className="relative flex">
+		<div className="relative flex min-w-0 shrink-0 border-b lg:border-b-0">
 			<div
 				ref={scrollRef}
-				className="scrollbar-hidden relative flex size-full p-1 flex-col items-center justify-start gap-0.5 overflow-y-auto"
+				className="asset-categories scrollbar-thin relative flex max-w-full p-1 items-center justify-start gap-1 overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto lg:flex-col lg:gap-0.5"
 			>
 				{TAB_KEYS.map((tabKey) => {
 					const tab = tabs[tabKey];
@@ -60,14 +66,16 @@ export function TabBar() {
 									variant={activeTab === tabKey ? "secondary" : "ghost"}
 									size="icon"
 									aria-label={tab.label}
+									aria-pressed={activeTab === tabKey}
 									className={cn(
 										"shrink-0",
-										"h-8 w-8",
+										"h-12 w-auto px-3 flex-col gap-1 text-[10px] lg:h-8 lg:w-8 lg:px-0",
 										activeTab !== tabKey && "text-muted-foreground",
 									)}
 									onClick={() => setActiveTab(tabKey)}
 								>
 									<tab.icon />
+									<span className="lg:hidden">{tab.label}</span>
 								</Button>
 							</TooltipTrigger>
 							<TooltipContent
@@ -101,7 +109,8 @@ function FadeOverlay({
 	return (
 		<div
 			className={cn(
-				"pointer-events-none absolute right-0 left-0 h-6",
+				"pointer-events-none absolute right-0 left-0 h-6 hidden lg:block",
+				!show && "lg:hidden",
 				direction === "top" && show
 					? "from-background top-0 bg-linear-to-b to-transparent"
 					: "from-background bottom-0 bg-linear-to-t to-transparent",

@@ -119,7 +119,7 @@ export function DraggableItem({
 							{preview}
 							{!isDragging && (
 								<PlusButton
-									className="opacity-0 group-hover:opacity-100"
+									className="asset-add opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
 									onClick={handleAddToTimeline}
 								/>
 							)}
@@ -154,6 +154,7 @@ export function DraggableItem({
 						draggable={isDraggable}
 						onDragStart={isDraggable ? handleDragStart : undefined}
 						onDragEnd={isDraggable ? handleDragEnd : undefined}
+						onClick={handleAddToTimeline}
 					>
 						<div className="size-6 shrink-0 overflow-hidden rounded-sm">
 							{preview}
@@ -212,7 +213,7 @@ function PlusButton({
 		<Button
 			size="icon"
 			className={cn(
-				"bg-background hover:bg-background text-foreground absolute right-2 bottom-2 size-5",
+				"bg-background hover:bg-background text-foreground absolute right-1 bottom-1 size-11 lg:right-2 lg:bottom-2 lg:size-5",
 				className,
 			)}
 			onClick={(e) => {
@@ -220,6 +221,7 @@ function PlusButton({
 				e.stopPropagation();
 				onClick?.();
 			}}
+			aria-label={tooltipText ?? "Adicionar à timeline"}
 			title={tooltipText}
 		>
 			<Plus />

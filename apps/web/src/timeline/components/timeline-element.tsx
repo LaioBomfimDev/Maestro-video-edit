@@ -47,7 +47,10 @@ import {
 	getSourceAudioActionLabel,
 	isSourceAudioSeparated,
 } from "@/timeline/audio-separation";
-import { buildWaveformGainSamples, isElementMuted } from "@/timeline/audio-state";
+import {
+	buildWaveformGainSamples,
+	isElementMuted,
+} from "@/timeline/audio-state";
 import { getTimelinePixelsPerSecond } from "@/timeline";
 import { buildWaveformSourceKey } from "@/media/waveform-summary";
 import { addMediaTime, type MediaTime, TICKS_PER_SECOND } from "@/wasm";
@@ -579,6 +582,19 @@ function ElementInner({
 						type="button"
 						tabIndex={-1}
 						className="absolute inset-0 size-full flex flex-col"
+						aria-label={`Clipe ${element.name}`}
+						aria-pressed={isSelected}
+						style={{ touchAction: isSelected ? "none" : "pan-x pan-y" }}
+						onPointerDown={(event) => {
+							if (
+								event.pointerType === "mouse" ||
+								!isSelected ||
+								!event.isPrimary
+							)
+								return;
+							event.preventDefault();
+							onElementMouseDown({ event, element });
+						}}
 						onClick={(event) => onElementClick({ event, element })}
 						onMouseDown={(event) => onElementMouseDown({ event, element })}
 					>
@@ -644,9 +660,13 @@ function ResizeHandle({
 		<button
 			type="button"
 			className={cn(
-				"absolute top-0 bottom-0 w-2",
+				"absolute top-0 bottom-0 w-5 lg:w-2 touch-none",
 				isLeft ? "-left-1 cursor-w-resize" : "-right-1 cursor-e-resize",
 			)}
+			onPointerDown={(event) => {
+				if (event.pointerType !== "mouse" && event.isPrimary)
+					onResizeStart({ event, element, track, side });
+			}}
 			onMouseDown={(event) => onResizeStart({ event, element, track, side })}
 			onClick={(event) => event.stopPropagation()}
 			aria-label={`${isLeft ? "Left" : "Right"} resize handle`}
@@ -909,7 +929,9 @@ function TextElementContent({
 	return (
 		<div className="flex size-full items-center justify-start pl-2">
 			<span className="truncate text-xs text-white">
-				{typeof element.params.content === "string" ? element.params.content : ""}
+				{typeof element.params.content === "string"
+					? element.params.content
+					: ""}
 			</span>
 		</div>
 	);

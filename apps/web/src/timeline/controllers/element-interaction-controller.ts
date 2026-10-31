@@ -1,4 +1,5 @@
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { listenForDrag } from "@/hooks/drag-events";
 import {
 	buildMoveGroup,
 	resolveGroupMove,
@@ -290,6 +291,7 @@ function resolveGroupMoveForDrop({
 
 export class ElementInteractionController {
 	private session: Session = { kind: "idle" };
+	private cleanupDrag: (() => void) | null = null;
 	// True once the active gesture crossed the drag threshold. Read by
 	// onElementClick, which fires after mouseup — by which point the session
 	// has already returned to idle, so the "was this a drag?" answer must
@@ -395,7 +397,7 @@ export class ElementInteractionController {
 				selectedElements,
 			},
 		};
-		this.activate();
+		this.activate(event);
 		this.notify();
 	};
 
@@ -429,14 +431,19 @@ export class ElementInteractionController {
 		this.deps.selection.clearKeyframeSelection();
 	};
 
-	private activate(): void {
-		document.addEventListener("mousemove", this.handleMouseMove);
-		document.addEventListener("mouseup", this.handleMouseUp);
+	private activate(event: ReactMouseEvent): void {
+		this.cleanupDrag?.();
+		this.cleanupDrag = listenForDrag({
+			source: event.nativeEvent,
+			onMove: this.handleMouseMove,
+			onEnd: this.handleMouseUp,
+			onCancel: () => this.cancel(),
+		});
 	}
 
 	private deactivate(): void {
-		document.removeEventListener("mousemove", this.handleMouseMove);
-		document.removeEventListener("mouseup", this.handleMouseUp);
+		this.cleanupDrag?.();
+		this.cleanupDrag = null;
 	}
 
 	private notify(): void {

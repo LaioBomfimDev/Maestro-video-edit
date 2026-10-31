@@ -21,6 +21,7 @@ import { SYSTEM_FONTS } from "@/fonts/system-fonts";
 import type { FontAtlas, FontAtlasEntry } from "@/fonts/types";
 import { useFontAtlas } from "@/fonts/use-font-atlas";
 import { cn } from "@/utils/ui";
+import { useCompactEditor } from "@/hooks/use-compact-editor";
 import { ChevronDown, Search, Star } from "lucide-react";
 import { toast } from "sonner";
 import { FEATURED_FONTS, useFontPickerStore } from "@/fonts/picker-store";
@@ -35,9 +36,8 @@ const FONT_TABS = [
 
 type FontTab = (typeof FONT_TABS)[number]["key"];
 
-const ROW_HEIGHT = 40;
+const ROW_HEIGHT = 44;
 const PREVIEW_SCALE = 0.8;
-const LIST_WIDTH = 288;
 const MAX_LIST_HEIGHT = 288;
 const OVERSCAN = 15;
 
@@ -52,6 +52,7 @@ export function FontPicker({
 	onValueChange,
 	className,
 }: FontPickerProps) {
+	const compact = useCompactEditor();
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useState("");
 	const [activeTab, setActiveTab] = useState<FontTab>("all");
@@ -148,9 +149,10 @@ export function FontPicker({
 				<ChevronDown className="size-3 shrink-0 opacity-50" />
 			</PopoverTrigger>
 			<PopoverContent
-				className="w-72 p-0 overflow-hidden"
+				className="w-72 p-0 overflow-hidden flex flex-col"
 				align="start"
-				side="left"
+				side={compact ? "top" : "left"}
+				collisionPadding={8}
 				onOpenAutoFocus={(event) => {
 					event.preventDefault();
 					searchInputRef.current?.focus();
@@ -164,6 +166,7 @@ export function FontPicker({
 					<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 shrink-0 opacity-50" />
 					<Input
 						ref={searchInputRef}
+						aria-label="Buscar fontes"
 						placeholder={`Buscar em ${activeTabLabel}…`}
 						value={search}
 						onChange={(event) => setSearch(event.target.value)}
@@ -224,7 +227,7 @@ export function FontPicker({
 							toggleFavorite,
 							onFontSelect: handleSelect,
 						}}
-						style={{ height: listHeight, width: LIST_WIDTH }}
+						style={{ height: listHeight, width: "100%", minHeight: 0 }}
 					/>
 				)}
 			</PopoverContent>

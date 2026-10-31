@@ -27,12 +27,12 @@ export function PanelView({
 }: PanelViewProps) {
 	return (
 		<div
-			className={cn("relative flex h-full flex-col", className)}
+			className={cn("relative flex h-full min-h-0 min-w-0 flex-col", className)}
 			ref={ref}
 			{...rest}
 		>
 			{!hideHeader && (
-				<div className="bg-background h-11 shrink-0 pl-3 pr-2 flex items-center justify-between border-b">
+				<div className="bg-background min-h-12 lg:min-h-11 shrink-0 gap-2 py-1 pl-3 pr-2 flex flex-wrap items-center justify-between border-b">
 					{title && (
 						<span className="text-muted-foreground text-sm">{title}</span>
 					)}
@@ -41,7 +41,7 @@ export function PanelView({
 			)}
 			<div
 				className={cn(
-					"scrollbar-hidden size-full overflow-y-auto",
+					"scrollbar-thin min-h-0 min-w-0 flex-1 overflow-y-auto",
 					hideHeader ? "pt-4" : "pt-2",
 					scrollClassName,
 				)}

@@ -82,7 +82,7 @@ const DropdownMenuSubContent = React.forwardRef<
 	<DropdownMenuPrimitive.SubContent
 		ref={ref}
 		className={cn(
-			"group/menu bg-popover text-popover-foreground z-50 min-w-32 overflow-hidden rounded-md border p-1 shadow-lg",
+			"app-dropdown group/menu bg-popover text-popover-foreground z-350 max-w-[calc(100vw-1rem)] max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-32 overflow-y-auto rounded-md border p-1 shadow-lg",
 			className,
 		)}
 		{...props}
@@ -104,7 +104,7 @@ const DropdownMenuContent = React.forwardRef<
 				e.preventDefault();
 			}}
 			className={cn(
-				"group/menu bg-popover text-popover-foreground z-50 min-w-32 overflow-hidden rounded-md border p-1 shadow-lg",
+				"app-dropdown group/menu bg-popover text-popover-foreground z-350 max-w-[calc(100vw-1rem)] max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-32 overflow-y-auto rounded-md border p-1 shadow-lg",
 				className,
 			)}
 			{...props}
@@ -140,14 +140,9 @@ const DropdownMenuItem = React.forwardRef<
 		);
 
 		const renderedChildren =
-			asChild && React.isValidElement(children) ? (
-				React.cloneElement(
-					children as React.ReactElement<{ children?: React.ReactNode }>,
-					{},
-					iconSlot,
-					(children as React.ReactElement<{ children?: React.ReactNode }>).props
-						.children,
-				)
+			asChild &&
+			React.isValidElement<{ children?: React.ReactNode }>(children) ? (
+				React.cloneElement(children, {}, iconSlot, children.props.children)
 			) : (
 				<>
 					{iconSlot}

@@ -22,8 +22,6 @@ import {
 } from "@/components/ui/select";
 import { PREVIEW_ZOOM_PRESETS } from "@/preview/zoom";
 import { usePreviewViewport } from "./preview-viewport";
-import { GridPopover } from "./guide-popover";
-import { usePreviewStore } from "@/preview/preview-store";
 import type { MediaTime } from "@/wasm";
 
 export function PreviewToolbar({
@@ -32,10 +30,10 @@ export function PreviewToolbar({
 	onToggleFullscreen: () => void;
 }) {
 	return (
-		<div className="grid grid-cols-[1fr_auto_1fr] items-center pb-3 pt-5 px-5">
+		<div className="preview-toolbar grid grid-cols-[1fr_auto_auto] lg:grid-cols-[1fr_auto_1fr] items-center gap-1 px-2 py-1 lg:pb-3 lg:pt-5 lg:px-5">
 			<TimecodeDisplay />
 			<PlayPauseButton />
-			<div className="justify-self-end flex items-center gap-2.5">
+			<div className="justify-self-end flex items-center gap-1 lg:gap-2.5">
 				<ZoomSelect />
 				<Separator orientation="vertical" className="h-4" />
 				{/* v0.4.0 */}
@@ -51,7 +49,12 @@ export function PreviewToolbar({
 						)}
 					</Button>
 				</GridPopover> */}
-				<Button variant="text" onClick={onToggleFullscreen}>
+				<Button
+					variant="text"
+					aria-label="Tela cheia"
+					className="size-11 lg:size-auto"
+					onClick={onToggleFullscreen}
+				>
 					<HugeiconsIcon icon={FullScreenIcon} />
 				</Button>
 			</div>
@@ -86,8 +89,10 @@ function TimecodeDisplay() {
 				onTimeChange={({ time }) => editor.playback.seek({ time })}
 				className="text-center"
 			/>
-			<span className="text-muted-foreground px-2 font-mono text-xs">/</span>
-			<span className="text-muted-foreground font-mono text-xs">
+			<span className="hidden lg:inline text-muted-foreground px-2 font-mono text-xs">
+				/
+			</span>
+			<span className="hidden lg:inline text-muted-foreground font-mono text-xs">
 				{formatTimecode({
 					time: totalDuration,
 					format: "HH:MM:SS:FF",
@@ -117,7 +122,12 @@ function ZoomSelect() {
 			value={isAtFit ? "fit" : String(zoomPercent)}
 			onValueChange={onValueChange}
 		>
-			<SelectTrigger className="tabular-nums">{displayLabel}</SelectTrigger>
+			<SelectTrigger
+				aria-label="Zoom da prévia"
+				className="tabular-nums min-h-11 lg:min-h-0"
+			>
+				{displayLabel}
+			</SelectTrigger>
 			<SelectContent>
 				<SelectItem value="fit">Fit</SelectItem>
 				<SelectSeparator />
@@ -138,6 +148,8 @@ function PlayPauseButton() {
 		<Button
 			variant="text"
 			size="icon"
+			aria-label={isPlaying ? "Pausar" : "Reproduzir"}
+			className="size-11 lg:size-7"
 			onClick={() => invokeAction("toggle-play")}
 		>
 			<HugeiconsIcon icon={isPlaying ? PauseIcon : PlayIcon} />

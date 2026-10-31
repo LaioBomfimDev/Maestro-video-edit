@@ -104,7 +104,7 @@ export default function ProjectsPage() {
 	}, [editor.project]);
 
 	return (
-		<div className="bg-background min-h-screen">
+		<div className="projects-page bg-background min-h-screen">
 			<MigrationDialog />
 			<StoragePersistenceDialog />
 			<ChangelogNotification />
@@ -119,7 +119,7 @@ export default function ProjectsPage() {
 					<div
 						className={
 							viewMode === "grid"
-								? "xs:grid-cols-2 grid grid-cols-1 gap-6 sm:grid-cols-3 lg:grid-cols-4 px-4"
+								? "grid grid-cols-1 min-[440px]:grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4 md:px-4"
 								: "flex flex-col"
 						}
 					>
@@ -141,7 +141,7 @@ function ProjectsHeader() {
 	const { viewMode, isHydrated, setViewMode } = useProjectsStore();
 
 	return (
-		<header className="sticky top-0 z-20 px-8 bg-background flex flex-col gap-2">
+		<header className="md:sticky top-0 z-20 px-4 md:px-8 bg-background flex flex-col gap-2">
 			<div className="flex items-center justify-between h-16 pt-2">
 				<div className="flex items-center gap-5">
 					<Breadcrumb>
@@ -226,8 +226,8 @@ function ProjectsToolbar({ projectIds }: { projectIds: string[] }) {
 	};
 
 	return (
-		<div className="sticky top-16 z-10 flex items-center justify-between px-6 h-14 pt-2 bg-background">
-			<div className="flex items-center gap-2">
+		<div className="md:sticky top-16 z-10 flex flex-wrap gap-2 items-center justify-between px-4 md:px-6 min-h-14 py-2 bg-background">
+			<div className="flex flex-wrap items-center gap-1 md:gap-2">
 				<Label
 					className="flex items-center gap-3 cursor-pointer px-2"
 					htmlFor="select-all-projects"
@@ -279,7 +279,7 @@ function ProjectsToolbar({ projectIds }: { projectIds: string[] }) {
 
 				<div className="h-4 w-px bg-border/50 block md:hidden" />
 
-				<div className="flex md:hidden items-center gap-4">
+				<div className="flex md:hidden items-center gap-1">
 					{VIEW_MODE_OPTIONS.map(({ mode, icon, label }) => (
 						<Button
 							key={mode}
@@ -518,7 +518,7 @@ function NewProjectButton() {
 	return (
 		<Button
 			size="lg"
-			className="flex px-5 md:px-6"
+			className="flex min-h-11 px-5 md:px-6"
 			onClick={handleCreateProject}
 		>
 			<span className="text-sm font-medium hidden md:block">New project</span>
@@ -706,7 +706,7 @@ function ProjectItem({
 									className={`absolute z-10 size-5 top-3 left-3 ${
 										isSelected || isDropdownOpen
 											? "opacity-100"
-											: "opacity-0 group-hover:opacity-100"
+											: "opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
 									}`}
 								/>
 
@@ -870,20 +870,20 @@ function ProjectMenu({
 					variant="background"
 					className={
 						isGrid
-							? `absolute z-10 top-3 right-3 ${isOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`
+							? `absolute z-10 top-3 right-3 ${isOpen ? "opacity-100" : "opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"}`
 							: "!bg-transparent !shadow-none"
 					}
 					size="icon"
 					aria-label="Project menu"
 					onClick={(event) =>
 						handleMenuClick({
-							event: event as unknown as MouseEvent<HTMLButtonElement>,
+							event,
 						})
 					}
 					onMouseDown={(event) => event.stopPropagation()}
 					onKeyDown={(event) =>
 						handleMenuKeyDown({
-							event: event as unknown as KeyboardEvent<HTMLButtonElement>,
+							event,
 						})
 					}
 				>
@@ -978,7 +978,8 @@ function EmptyState() {
 					<div className="flex flex-col items-center gap-3">
 						<h3 className="text-lg font-medium">No results found</h3>
 						<p className="text-muted-foreground max-w-md">
-							Your search for "{searchQuery}" did not return any results.
+							Your search for &quot;{searchQuery}&quot; did not return any
+							results.
 						</p>
 					</div>
 				</div>

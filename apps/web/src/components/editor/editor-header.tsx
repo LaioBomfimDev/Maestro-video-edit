@@ -29,13 +29,15 @@ import { cn } from "@/utils/ui";
 
 export function EditorHeader() {
 	return (
-		<header className="bg-background flex h-[3.4rem] items-center justify-between px-3 pt-0.5">
-			<div className="flex items-center gap-1">
+		<header className="editor-header bg-background flex min-h-14 shrink-0 items-center justify-between gap-1 px-2 lg:px-3 pt-0.5">
+			<div className="flex min-w-0 flex-1 items-center gap-1">
 				<ProjectDropdown />
 				<EditableProjectName />
 			</div>
-			<nav className="flex items-center gap-2">
-				<FeedbackPopover />
+			<nav className="flex shrink-0 items-center gap-1 lg:gap-2">
+				<div className="hidden lg:block">
+					<FeedbackPopover />
+				</div>
 				<ExportButton />
 				<ThemeToggle />
 			</nav>
@@ -111,7 +113,12 @@ function ProjectDropdown() {
 		<>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" size="icon" className="p-1 rounded-sm size-8">
+					<Button
+						variant="ghost"
+						size="icon"
+						className="p-1 rounded-sm size-11 shrink-0 lg:size-8"
+						aria-label="Menu do projeto"
+					>
 						<Image
 							src={DEFAULT_LOGO_URL}
 							alt="Project thumbnail"
@@ -233,6 +240,7 @@ function EditableProjectName() {
 		<input
 			ref={inputRef}
 			type="text"
+			aria-label="Nome do projeto"
 			defaultValue={projectName}
 			readOnly={!isEditing}
 			onClick={startEditing}
@@ -240,7 +248,7 @@ function EditableProjectName() {
 			onKeyDown={handleKeyDown}
 			style={{ fieldSizing: "content" }}
 			className={cn(
-				"text-[0.9rem] h-8 px-2 py-1 rounded-sm bg-transparent outline-none cursor-pointer hover:bg-accent hover:text-accent-foreground",
+				"text-[0.9rem] h-11 lg:h-8 min-w-0 max-w-full w-full lg:w-auto truncate px-2 py-1 rounded-sm bg-transparent outline-none cursor-pointer hover:bg-accent hover:text-accent-foreground",
 				isEditing && "ring-1 ring-ring cursor-text hover:bg-transparent",
 			)}
 		/>

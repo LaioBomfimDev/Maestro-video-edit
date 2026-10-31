@@ -66,7 +66,8 @@ const sheetVariants = cva(
 );
 
 interface SheetContentProps
-	extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
+	extends
+		React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
 		VariantProps<typeof sheetVariants> {}
 
 const SheetContent = React.forwardRef<
@@ -84,7 +85,7 @@ const SheetContent = React.forwardRef<
 			}}
 			{...props}
 		>
-			<SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 cursor-pointer rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+			<SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-2 right-2 size-11 flex items-center justify-center lg:top-4 lg:right-4 lg:size-5 cursor-pointer rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
 				<X className="size-5" />
 				<span className="sr-only">Close</span>
 			</SheetPrimitive.Close>
