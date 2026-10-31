@@ -2,7 +2,6 @@ import type { EditorCore } from "@/core";
 import type {
 	TProject,
 	TProjectMetadata,
-	TProjectSortKey,
 	TProjectSortOption,
 	TProjectSettings,
 	TTimelineViewState,
@@ -15,7 +14,10 @@ import { UpdateProjectSettingsCommand } from "@/commands/project";
 import { DEFAULT_BACKGROUND_COLOR } from "@/background/color";
 import { DEFAULT_CANVAS_SIZE } from "@/canvas/sizes";
 import { DEFAULT_FPS } from "@/fps/defaults";
-import { buildDefaultScene, getProjectDurationFromScenes } from "@/timeline/scenes";
+import {
+	buildDefaultScene,
+	getProjectDurationFromScenes,
+} from "@/timeline/scenes";
 import { buildScene } from "@/services/renderer/scene-builder";
 import { CanvasRenderer } from "@/services/renderer/canvas-renderer";
 import {
@@ -164,6 +166,10 @@ export class ProjectManager {
 						),
 					),
 				],
+			}).catch(() => {
+				toast.warning(
+					"Algumas fontes não carregaram. O projeto abriu com fontes de substituição; verifique sua conexão antes de exportar.",
+				);
 			});
 
 			if (!project.metadata.thumbnail) {
@@ -555,10 +561,14 @@ export class ProjectManager {
 			project.name.toLowerCase().includes(searchQuery.toLowerCase()),
 		);
 
-		const [key, order] = sortOption.split("-") as [
-			TProjectSortKey,
-			"asc" | "desc",
-		];
+		const [key, order] = sortOption.split("-");
+		if (
+			key !== "createdAt" &&
+			key !== "updatedAt" &&
+			key !== "name" &&
+			key !== "duration"
+		)
+			return filteredProjects;
 
 		const sortedProjects = [...filteredProjects].sort((a, b) => {
 			const aValue = a[key];

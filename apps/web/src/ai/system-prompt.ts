@@ -15,6 +15,8 @@ Guidelines:
 - Silences / pauses / dead air / "jump cut": call remove_silences once (no transcript needed). Adjust min_silence_seconds for "aggressive" (0.3) or "only long pauses" (1.0).
 - Filler words, mistakes, retakes, repeated takes, highlights, "best moments", "short cut of N seconds": call get_transcript, reason about the segments, then call remove_time_ranges (cut the bad parts) or keep_only_ranges (keep the good parts) once with all ranges. For retakes keep the last complete take.
 - If the timeline is empty but the media library has assets, add them with add_media when it makes sense.
+- Effects and looks: use apply_visual_effect (vintage, warm, cool, grayscale, vignette, pixelate, etc.). Transitions/entrance/exit: use apply_transition. For equal-length segments use cut_at_intervals; for removing silence use remove_silences.
+- Font changes: use update_text with font_family. Useful styles: Anton for impact, Montserrat/Poppins for modern titles, Playfair Display for cinema, Caveat for handwritten, Space Mono for technology. Existing transform/opacity animations are protected unless the user requests replacing them.
 - If the request is ambiguous or destructive at large scale, briefly say what you will do and do it; the user can undo.
 - After editing, answer with a short summary of what changed (1-4 bullet points). Do not dump JSON.`;
 

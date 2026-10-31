@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { PanelView } from "@/components/editor/panels/assets/views/base-panel";
 import { DraggableItem } from "@/components/editor/panels/assets/draggable-item";
 import { effectsRegistry, EFFECT_TARGET_ELEMENT_TYPES } from "@/effects";
@@ -8,13 +8,49 @@ import { effectPreviewService } from "@/services/renderer/effect-preview";
 import { useEditor } from "@/editor/use-editor";
 import { buildEffectElement } from "@/timeline/element-utils";
 import type { EffectDefinition } from "@/effects/types";
+import { Input } from "@/components/ui/input";
+import { useElementSelection } from "@/timeline/hooks/element/use-element-selection";
+import { isVisualElement } from "@/timeline";
+import { AddClipEffectCommand } from "@/commands/timeline/element/effects/add-effect";
+import { BatchCommand } from "@/commands";
+import { toast } from "sonner";
 
 export function EffectsView() {
-	const effects = effectsRegistry.getAll();
+	const [query, setQuery] = useState("");
+	const { selectedElements } = useElementSelection();
+	const search = query
+		.toLocaleLowerCase("pt-BR")
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "");
+	const effects = effectsRegistry.getAll().filter((effect) =>
+		`${effect.name} ${effect.keywords.join(" ")}`
+			.toLocaleLowerCase("pt-BR")
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.includes(search),
+	);
 
 	return (
-		<PanelView title="Effects">
+		<PanelView title="Efeitos">
+			<div className="px-1 pb-3 flex flex-col gap-2">
+				<Input
+					placeholder="Buscar efeito…"
+					aria-label="Buscar efeito"
+					value={query}
+					onChange={(event) => setQuery(event.target.value)}
+				/>
+				<p className="text-xs text-muted-foreground">
+					{selectedElements.length
+						? "O botão + aplica à seleção. Arraste para escolher outro clipe."
+						: "O botão + adiciona uma faixa de efeito. Arraste sobre um clipe para aplicar só nele."}
+				</p>
+			</div>
 			<EffectsGrid effects={effects} />
+			{effects.length === 0 && (
+				<p className="p-4 text-xs text-muted-foreground">
+					Nenhum efeito encontrado.
+				</p>
+			)}
 		</PanelView>
 	);
 }
@@ -57,6 +93,27 @@ function EffectItem({ effect }: { effect: EffectDefinition }) {
 	const editor = useEditor();
 
 	const handleAddToTimeline = useCallback(() => {
+		const selected = editor.timeline
+			.getElementsWithTracks({
+				elements: editor.selection.getSelectedElements(),
+			})
+			.filter(({ element }) => isVisualElement(element));
+		if (selected.length) {
+			editor.command.execute({
+				command: new BatchCommand(
+					selected.map(
+						({ track, element }) =>
+							new AddClipEffectCommand({
+								trackId: track.id,
+								elementId: element.id,
+								effectType: effect.type,
+							}),
+					),
+				),
+			});
+			toast.success(`${effect.name} aplicado em ${selected.length} clipe(s).`);
+			return;
+		}
 		const currentTime = editor.playback.getCurrentTime();
 		const element = buildEffectElement({
 			effectType: effect.type,
@@ -67,7 +124,7 @@ function EffectItem({ effect }: { effect: EffectDefinition }) {
 			placement: { mode: "auto", trackType: "effect" },
 			element,
 		});
-	}, [editor, effect.type]);
+	}, [editor, effect.type, effect.name]);
 
 	const preview = <EffectPreviewCanvas effectType={effect.type} />;
 

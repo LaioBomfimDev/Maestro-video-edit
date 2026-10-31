@@ -12,13 +12,14 @@ import {
 	TextIcon,
 	Settings01Icon,
 	SlidersHorizontalIcon,
-	ColorsIcon,
+	ScissorIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 
 export const TAB_KEYS = [
 	"assistant",
 	"media",
+	"cuts",
 	"sounds",
 	"text",
 	"stickers",
@@ -31,11 +32,12 @@ export const TAB_KEYS = [
 
 export type Tab = (typeof TAB_KEYS)[number];
 
-const createHugeiconsIcon =
-	({ icon }: { icon: IconSvgElement }) =>
-	({ className }: { className?: string }) => (
-		<HugeiconsIcon icon={icon} className={className} />
-	);
+const createHugeiconsIcon = ({ icon }: { icon: IconSvgElement }) => {
+	function AssetTabIcon({ className }: { className?: string }) {
+		return <HugeiconsIcon icon={icon} className={className} />;
+	}
+	return AssetTabIcon;
+};
 
 export const tabs = {
 	assistant: {
@@ -46,13 +48,14 @@ export const tabs = {
 		icon: createHugeiconsIcon({ icon: Folder03Icon }),
 		label: "Media",
 	},
+	cuts: { icon: createHugeiconsIcon({ icon: ScissorIcon }), label: "Cortes" },
 	sounds: {
 		icon: createHugeiconsIcon({ icon: HeadphonesIcon }),
 		label: "Sounds",
 	},
 	text: {
 		icon: createHugeiconsIcon({ icon: TextIcon }),
-		label: "Text",
+		label: "Texto e fontes",
 	},
 	stickers: {
 		icon: createHugeiconsIcon({ icon: Happy01Icon }),
@@ -60,11 +63,11 @@ export const tabs = {
 	},
 	effects: {
 		icon: createHugeiconsIcon({ icon: MagicWand05Icon }),
-		label: "Effects",
+		label: "Efeitos",
 	},
 	transitions: {
 		icon: createHugeiconsIcon({ icon: ArrowRightDoubleIcon }),
-		label: "Transitions",
+		label: "Transições",
 	},
 	captions: {
 		icon: createHugeiconsIcon({ icon: ClosedCaptionIcon }),

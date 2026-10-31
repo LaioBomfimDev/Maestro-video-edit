@@ -18,6 +18,8 @@ import type {
 	RenderedTextureDescriptor,
 	TextureUploadDescriptor,
 } from "./types";
+import { gpuRenderer } from "../gpu-renderer";
+import { isCanvasPass } from "../canvas-effects";
 
 /**
  * One slot in the derived-texture cache. The OffscreenCanvas is persistent —
@@ -39,15 +41,26 @@ type ExternalCacheEntry = {
 	height: number;
 };
 
-class WasmCompositor {
+export class WasmCompositor {
+	constructor(
+		private readonly backend = {
+			initCompositor,
+			getCompositorCanvas,
+			resizeCompositor,
+			releaseTexture,
+			uploadTexture,
+			renderFrame,
+			getLastFrameProfile,
+		},
+	) {}
 	private canvas: HTMLCanvasElement | null = null;
 	private initializedSize: { width: number; height: number } | null = null;
 	private cache = new Map<string, RenderedCacheEntry | ExternalCacheEntry>();
 
 	ensureInitialized({ width, height }: { width: number; height: number }) {
 		if (!this.canvas) {
-			initCompositor(width, height);
-			this.canvas = getCompositorCanvas();
+			this.backend.initCompositor(width, height);
+			this.canvas = this.backend.getCompositorCanvas();
 			this.initializedSize = { width, height };
 			return;
 		}
@@ -57,7 +70,7 @@ class WasmCompositor {
 			this.initializedSize.width !== width ||
 			this.initializedSize.height !== height
 		) {
-			resizeCompositor(width, height);
+			this.backend.resizeCompositor(width, height);
 			this.initializedSize = { width, height };
 		}
 	}
@@ -73,7 +86,7 @@ class WasmCompositor {
 		const nextIds = new Set(textures.map((texture) => texture.id));
 		for (const previousId of this.cache.keys()) {
 			if (!nextIds.has(previousId)) {
-				releaseTexture(previousId);
+				this.backend.releaseTexture(previousId);
 				this.cache.delete(previousId);
 			}
 		}
@@ -88,11 +101,91 @@ class WasmCompositor {
 	}
 
 	render(frame: FrameDescriptor) {
-		renderFrame(frame);
+		// Canvas effects are rasterized before uploading, so both the preview and
+		// the exporter retain the order of clip effects and adjustment layers.
+		const temporaryIds: string[] = [];
+		const items: FrameDescriptor["items"] = [];
+		try {
+			for (const [index, item] of frame.items.entries()) {
+				if (!item.effectPassGroups.some((group) => group.some(isCanvasPass))) {
+					items.push(item);
+					continue;
+				}
+				let source: OffscreenCanvas;
+				let width: number;
+				let height: number;
+				if (item.type === "sceneEffect") {
+					this.backend.renderFrame({ ...frame, items: [...items] });
+					width = frame.width;
+					height = frame.height;
+					source = ensureOffscreenCanvas({
+						source: this.getCanvas(),
+						width,
+						height,
+						label: "scene effect",
+					});
+				} else {
+					const cached = this.cache.get(item.textureId);
+					if (!cached)
+						throw new Error(`Missing effect source ${item.textureId}`);
+					width = cached.width;
+					height = cached.height;
+					source = ensureOffscreenCanvas({
+						source: cached.kind === "rendered" ? cached.canvas : cached.source,
+						width,
+						height,
+						label: "clip effect",
+					});
+				}
+				for (const passes of item.effectPassGroups)
+					source = gpuRenderer.applyEffect({ source, width, height, passes });
+				const id = `maestro:effect:${index}`;
+				this.backend.uploadTexture({ id, source, width, height });
+				temporaryIds.push(id);
+				if (item.type === "layer") {
+					items.push({ ...item, textureId: id, effectPassGroups: [] });
+				} else {
+					items.length = 0;
+					items.push({
+						type: "layer",
+						textureId: id,
+						opacity: 1,
+						blendMode: "normal",
+						mask: null,
+						effectPassGroups: [],
+						transform: {
+							centerX: width / 2,
+							centerY: height / 2,
+							width,
+							height,
+							rotationDegrees: 0,
+							flipX: false,
+							flipY: false,
+						},
+					});
+				}
+			}
+			this.backend.renderFrame({ ...frame, items });
+		} finally {
+			for (const id of temporaryIds) this.backend.releaseTexture(id);
+		}
 		if (isRenderPerfEnabled()) {
-			recordWasmFrameProfile(
-				getLastFrameProfile() as Array<{ name: string; durationMs: number }>,
-			);
+			const profile: unknown = this.backend.getLastFrameProfile();
+			if (Array.isArray(profile))
+				recordWasmFrameProfile(
+					profile.flatMap((entry: unknown) => {
+						if (
+							typeof entry !== "object" ||
+							entry === null ||
+							!("name" in entry) ||
+							!("durationMs" in entry) ||
+							typeof entry.name !== "string" ||
+							typeof entry.durationMs !== "number"
+						)
+							return [];
+						return [{ name: entry.name, durationMs: entry.durationMs }];
+					}),
+				);
 		}
 	}
 
@@ -113,7 +206,7 @@ class WasmCompositor {
 			name: "textureUploadPixels",
 			by: texture.width * texture.height,
 		});
-		uploadTexture({
+		this.backend.uploadTexture({
 			id: texture.id,
 			source: ensureOffscreenCanvas({
 				source: texture.source,
@@ -166,7 +259,7 @@ class WasmCompositor {
 			name: "textureUploadPixels",
 			by: texture.width * texture.height,
 		});
-		uploadTexture({
+		this.backend.uploadTexture({
 			id: texture.id,
 			source: canvas,
 			width: texture.width,

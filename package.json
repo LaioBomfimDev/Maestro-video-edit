@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "scripts": {
+    "build:editing": "node apps/web/scripts/build-editing.mjs",
     "build:tools": "turbo run build --filter=@opencut/tools",
     "build:wasm": "wasm-pack build rust/wasm --target bundler --out-dir pkg",
     "build:web": "turbo run build --filter=@opencut/web",

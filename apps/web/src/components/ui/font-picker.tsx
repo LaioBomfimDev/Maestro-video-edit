@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback, type CSSProperties } from "react";
+import {
+	useState,
+	useMemo,
+	useRef,
+	useEffect,
+	useCallback,
+	type CSSProperties,
+} from "react";
 import { List, type RowComponentProps } from "react-window";
 import {
 	Popover,
@@ -14,14 +21,16 @@ import { SYSTEM_FONTS } from "@/fonts/system-fonts";
 import type { FontAtlas, FontAtlasEntry } from "@/fonts/types";
 import { useFontAtlas } from "@/fonts/use-font-atlas";
 import { cn } from "@/utils/ui";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search, Star } from "lucide-react";
+import { toast } from "sonner";
+import { FEATURED_FONTS, useFontPickerStore } from "@/fonts/picker-store";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { TextIcon } from "@hugeicons/core-free-icons";
 
 const FONT_TABS = [
-	{ key: "all", label: "All fonts" },
-	{ key: "my-fonts", label: "My fonts" },
-	{ key: "favorites", label: "Favorites" },
+	{ key: "all", label: "Todas" },
+	{ key: "my-fonts", label: "Destaques" },
+	{ key: "favorites", label: "Favoritas" },
 ] as const;
 
 type FontTab = (typeof FONT_TABS)[number]["key"];
@@ -46,47 +55,80 @@ export function FontPicker({
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useState("");
 	const [activeTab, setActiveTab] = useState<FontTab>("all");
+	const { favorites, toggleFavorite } = useFontPickerStore();
+	const [loadingFont, setLoadingFont] = useState<string | null>(null);
 	const searchInputRef = useRef<HTMLInputElement>(null);
-	const { atlas, status, fontNames, retry: handleRetry } = useFontAtlas({ open });
+	const requestVersion = useRef(0);
+	const {
+		atlas,
+		status,
+		fontNames,
+		retry: handleRetry,
+	} = useFontAtlas({ open });
 
 	const filteredFonts = useMemo(() => {
-		if (!search) return fontNames;
+		const source =
+			activeTab === "favorites"
+				? favorites
+				: activeTab === "my-fonts"
+					? FEATURED_FONTS
+					: fontNames;
+		if (!search) return source;
 		const query = search.toLowerCase();
-		return fontNames.filter((name) => name.toLowerCase().includes(query));
-	}, [fontNames, search]);
+		return source.filter((name) => name.toLowerCase().includes(query));
+	}, [fontNames, search, activeTab, favorites]);
 
 	const listHeight = Math.min(
 		MAX_LIST_HEIGHT,
 		filteredFonts.length * ROW_HEIGHT,
 	);
 
+	const handleOpenChange = useCallback((next: boolean) => {
+		setOpen(next);
+		if (!next) {
+			requestVersion.current++;
+			setLoadingFont(null);
+			setSearch("");
+			setActiveTab("all");
+		}
+	}, []);
+
 	const handleSelect = useCallback(
 		async ({ family }: { family: string }) => {
+			const version = ++requestVersion.current;
+			setLoadingFont(family);
 			if (!SYSTEM_FONTS.has(family)) {
 				try {
 					await loadFullFont({ family });
 				} catch {
-					// ignore load failure, font will fall back to system default
+					if (version !== requestVersion.current) return;
+					toast.error(
+						"Não foi possível carregar essa fonte. Verifique sua conexão e tente novamente.",
+					);
+					setLoadingFont(null);
+					return;
 				}
 			}
+			if (version !== requestVersion.current) return;
 			onValueChange?.(family);
-			setOpen(false);
+			setLoadingFont(null);
+			handleOpenChange(false);
 		},
-		[onValueChange],
+		[onValueChange, handleOpenChange],
 	);
 
-	useEffect(() => {
-		if (!open) {
-			setSearch("");
-			setActiveTab("all");
-		}
-	}, [open]);
+	useEffect(
+		() => () => {
+			requestVersion.current++;
+		},
+		[],
+	);
 
 	const activeTabLabel =
 		FONT_TABS.find((t) => t.key === activeTab)?.label.toLowerCase() ?? "";
 
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
+		<Popover open={open} onOpenChange={handleOpenChange}>
 			<PopoverTrigger
 				className={cn(
 					"border-border bg-accent flex h-7 w-full cursor-pointer items-center justify-between gap-1 rounded-md border px-2.5 text-sm whitespace-nowrap focus-visible:border-primary focus-visible:ring-0 focus:outline-hidden",
@@ -98,7 +140,9 @@ export function FontPicker({
 						<HugeiconsIcon icon={TextIcon} />
 					</span>
 					<span className="truncate" style={{ fontFamily: defaultValue }}>
-						{defaultValue ?? "Select a font"}
+						{loadingFont
+							? `Carregando ${loadingFont}…`
+							: (defaultValue ?? "Escolha uma fonte")}
 					</span>
 				</div>
 				<ChevronDown className="size-3 shrink-0 opacity-50" />
@@ -120,7 +164,7 @@ export function FontPicker({
 					<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 shrink-0 opacity-50" />
 					<Input
 						ref={searchInputRef}
-						placeholder={`Search ${activeTabLabel}...`}
+						placeholder={`Buscar em ${activeTabLabel}…`}
 						value={search}
 						onChange={(event) => setSearch(event.target.value)}
 						size="xs"
@@ -146,27 +190,27 @@ export function FontPicker({
 				</div>
 				{status === "loading" && (
 					<div className="py-8 text-center text-sm text-muted-foreground">
-						Loading fonts...
+						Carregando prévias…
 					</div>
 				)}
 				{status === "error" && (
 					<div className="flex flex-col items-center gap-3 py-8 px-4">
 						<p className="text-sm text-muted-foreground text-center">
-							Failed to load font previews.
+							Prévias indisponíveis. Você ainda pode escolher uma fonte abaixo.
 						</p>
 						<Button variant="outline" size="sm" onClick={handleRetry}>
-							Retry
+							Tentar novamente
 						</Button>
 					</div>
 				)}
-				{status === "idle" &&
-					fontNames.length > 0 &&
-					filteredFonts.length === 0 && (
-						<div className="py-6 text-center text-sm text-muted-foreground">
-							No fonts found.
-						</div>
-					)}
-				{status === "idle" && atlas && filteredFonts.length > 0 && (
+				{fontNames.length > 0 && filteredFonts.length === 0 && (
+					<div className="py-6 text-center text-sm text-muted-foreground">
+						{activeTab === "favorites"
+							? "Clique na estrela ao lado de uma fonte para salvá-la."
+							: "Nenhuma fonte encontrada."}
+					</div>
+				)}
+				{filteredFonts.length > 0 && (
 					<List
 						rowCount={filteredFonts.length}
 						rowHeight={ROW_HEIGHT}
@@ -176,6 +220,8 @@ export function FontPicker({
 							atlas,
 							filteredFonts,
 							selectedFont: defaultValue,
+							favorites,
+							toggleFavorite,
 							onFontSelect: handleSelect,
 						}}
 						style={{ height: listHeight, width: LIST_WIDTH }}
@@ -208,10 +254,12 @@ function FontSpritePreview({ entry }: { entry: FontAtlasEntry }) {
 }
 
 type FontRowProps = {
-	atlas: FontAtlas;
+	atlas: FontAtlas | null;
 	filteredFonts: string[];
 	selectedFont: string | undefined;
 	onFontSelect: (params: { family: string }) => void;
+	favorites: string[];
+	toggleFavorite: (family: string) => void;
 };
 
 function FontRow({
@@ -221,38 +269,54 @@ function FontRow({
 	filteredFonts,
 	selectedFont,
 	onFontSelect,
+	favorites,
+	toggleFavorite,
 }: RowComponentProps<FontRowProps>) {
 	const fontName = filteredFonts[index];
-	const entry = atlas.fonts[fontName];
+	const entry = atlas?.fonts[fontName];
 	const isSelected = fontName === selectedFont;
 	const isSystemFont = SYSTEM_FONTS.has(fontName);
 
 	return (
-		<button
-			type="button"
+		<div
 			style={style as CSSProperties}
 			className={cn(
 				"flex w-full cursor-pointer items-center gap-2 px-3 outline-hidden hover:bg-popover-hover",
 				isSelected && "bg-popover-hover",
 			)}
-			onClick={() => onFontSelect({ family: fontName })}
-			onKeyDown={(event) => {
-				if (event.key === "Enter" || event.key === " ") {
-					event.preventDefault();
-					onFontSelect({ family: fontName });
-				}
-			}}
-			aria-label={fontName}
 		>
-			<div className="min-w-0 overflow-hidden">
-				{isSystemFont ? (
-					<span className="text-xl text-foreground/85" style={{ fontFamily: fontName }}>
+			<button
+				type="button"
+				className="flex-1 min-w-0 overflow-hidden text-left"
+				onClick={() => onFontSelect({ family: fontName })}
+				aria-label={fontName}
+				aria-pressed={isSelected}
+			>
+				{isSystemFont || !entry ? (
+					<span
+						className="text-xl text-foreground/85"
+						style={{ fontFamily: fontName }}
+					>
 						{fontName}
 					</span>
 				) : (
 					<FontSpritePreview entry={entry} />
 				)}
-			</div>
-		</button>
+			</button>
+			<button
+				type="button"
+				className="p-1 shrink-0"
+				onClick={() => toggleFavorite(fontName)}
+				aria-label={`${favorites.includes(fontName) ? "Remover" : "Adicionar"} ${fontName} ${favorites.includes(fontName) ? "das" : "às"} favoritas`}
+				aria-pressed={favorites.includes(fontName)}
+			>
+				<Star
+					className={cn(
+						"size-3.5",
+						favorites.includes(fontName) && "fill-yellow-400 text-yellow-400",
+					)}
+				/>
+			</button>
+		</div>
 	);
 }

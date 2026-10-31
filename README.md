@@ -13,7 +13,18 @@ A chave fica na sessão da aba e pode ser trocada ou removida nesse mesmo painel
 
 Remoção de silêncios e legendas usam processamento local no navegador. O chat Gemini envia o pedido e o contexto necessário do projeto ao provedor.
 
-## Desenvolvimento
+## Efeitos, transições, cortes e texto
+
+- **Efeitos:** 13 opções com intensidade ajustável, incluindo preto e branco, sépia, cinema retrô, luz quente/fria, vinheta e pixelização. O botão `+` aplica à seleção; sem seleção, cria uma faixa de efeito.
+- **Transições:** 8 animações de entrada/saída com duração por ponta. Dissolver faz uma passagem pelo fundo entre clipes consecutivos. Animações existentes ficam protegidas até marcar a opção de substituir.
+- **Cortes:** divisão no cursor, aparar pontas e cortes em intervalos de 0,1 a 60 segundos. Um Ctrl+Z desfaz todo o conjunto de cortes em intervalos.
+- **Texto e fontes:** texto simples e 10 estilos prontos, fontes em destaque e favoritas salvas no navegador. Fontes do Google precisam de conexão; fontes do sistema continuam disponíveis.
+
+O assistente também pode aplicar efeitos, transições, cortes em intervalos e trocar fontes por pedido no chat. Prévia e exportação usam o mesmo compositor. Efeitos de cor usam Canvas 2D, podendo aumentar o tempo de renderização em vídeos de alta resolução.
+
+Os cálculos de transição e cortes estão em `rust/crates/editing`. Para recompilar após alterações, instale o target com `rustup target add wasm32-unknown-unknown` e execute `bun run build:editing`. O pequeno binário em `apps/web/public/editing` é versionado para que o deploy Vercel não dependa da instalação do Rust.
+
+## Desenvolvimento local
 
 ```sh
 bun install --frozen-lockfile

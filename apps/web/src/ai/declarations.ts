@@ -8,6 +8,77 @@ const elementIds = {
 
 export const AI_TOOL_DECLARATIONS = [
 	{
+		name: "apply_visual_effect",
+		description: "Adds a visual effect to clips with intensity 0-100.",
+		parameters: {
+			type: "object",
+			properties: {
+				element_ids: elementIds,
+				effect: {
+					type: "string",
+					enum: [
+						"blur",
+						"grayscale",
+						"sepia",
+						"vivid",
+						"contrast",
+						"brightness",
+						"warm",
+						"cool",
+						"vintage",
+						"invert",
+						"hue",
+						"vignette",
+						"pixelate",
+					],
+				},
+				intensity: { type: "number" },
+			},
+			required: ["element_ids", "effect"],
+		},
+	},
+	{
+		name: "apply_transition",
+		description:
+			"Animates clip entrance/exit. Fade between consecutive clips passes through the scene background. Duration is per edge, clamped to half the clip. Does not move clips. Existing animations require replace=true.",
+		parameters: {
+			type: "object",
+			properties: {
+				element_ids: elementIds,
+				preset: {
+					type: "string",
+					enum: [
+						"fade",
+						"zoom-in",
+						"zoom-out",
+						"slide-left",
+						"slide-right",
+						"slide-up",
+						"slide-down",
+						"rotate",
+					],
+				},
+				mode: { type: "string", enum: ["in", "out", "both"] },
+				duration: {
+					type: "number",
+					description: "Seconds per edge, 0.05 to 5. Default 0.5.",
+				},
+				replace: { type: "boolean" },
+			},
+			required: ["element_ids", "preset"],
+		},
+	},
+	{
+		name: "cut_at_intervals",
+		description:
+			"Splits clips into segments without deleting footage. Interval 0.1-60 seconds, at most 200 cuts. All cuts undo together.",
+		parameters: {
+			type: "object",
+			properties: { element_ids: elementIds, interval: { type: "number" } },
+			required: ["element_ids", "interval"],
+		},
+	},
+	{
 		name: "get_timeline_state",
 		description:
 			"Returns the current project, tracks, elements, media library, playhead and selection. Call it again after edits if you need fresh IDs or times.",
@@ -195,6 +266,11 @@ export const AI_TOOL_DECLARATIONS = [
 			type: "object",
 			properties: {
 				element_id: { type: "string" },
+				font_family: {
+					type: "string",
+					description:
+						"System or Google Fonts family, e.g. Montserrat, Anton, Playfair Display, Roboto, Caveat.",
+				},
 				content: { type: "string" },
 				font_size: { type: "number" },
 				color: { type: "string" },

@@ -1,7 +1,10 @@
 "use client";
 
 import { Separator } from "@/components/ui/separator";
-import { type Tab, useAssetsPanelStore } from "@/components/editor/panels/assets/assets-panel-store";
+import {
+	type Tab,
+	useAssetsPanelStore,
+} from "@/components/editor/panels/assets/assets-panel-store";
 import { TabBar } from "./tabbar";
 import { Captions } from "@/subtitles/components/assets-view";
 import { MediaView } from "./views/assets";
@@ -11,6 +14,8 @@ import { StickersView } from "@/stickers/components/assets-view";
 import { TextView } from "@/text/components/assets-view";
 import { EffectsView } from "@/effects/components/assets-view";
 import { AssistantView } from "@/ai/components/assistant-view";
+import { TransitionsView } from "@/editing/components/transitions-view";
+import { CutsView } from "@/editing/components/cuts-view";
 
 export function AssetsPanel() {
 	const { activeTab } = useAssetsPanelStore();
@@ -18,15 +23,12 @@ export function AssetsPanel() {
 	const viewMap: Record<Tab, React.ReactNode> = {
 		assistant: <AssistantView />,
 		media: <MediaView />,
+		cuts: <CutsView />,
 		sounds: <SoundsView />,
 		text: <TextView />,
 		stickers: <StickersView />,
 		effects: <EffectsView />,
-		transitions: (
-			<div className="text-muted-foreground p-4">
-				Transitions view coming soon...
-			</div>
-		),
+		transitions: <TransitionsView />,
 		captions: <Captions />,
 		adjustment: (
 			<div className="text-muted-foreground p-4">

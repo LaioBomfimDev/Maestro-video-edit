@@ -1,0 +1,17 @@
+[package]
+name = "maestro-editing"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# Small, dependency-free bridge; building web presets does not build the desktop app.
+[workspace]
+
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"
+strip = true

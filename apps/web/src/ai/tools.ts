@@ -27,6 +27,10 @@ import {
 import { getTimelineAudio } from "./audio-analysis";
 import { detectSilences } from "./silence-detection";
 import type { ToolResult } from "./types";
+import { applyTransition, cutAtIntervals } from "@/editing/actions";
+import { effectsRegistry, buildDefaultEffectInstance } from "@/effects";
+import { loadFullFont } from "@/fonts/google-fonts";
+import { SYSTEM_FONTS } from "@/fonts/system-fonts";
 
 type Args = Record<string, unknown>;
 
@@ -454,6 +458,78 @@ type ToolHandler = (params: {
 }) => Promise<Omit<ToolOutcome, "ok">> | Omit<ToolOutcome, "ok">;
 
 const handlers: Record<string, ToolHandler> = {
+	apply_visual_effect: ({ ctx, args }) => {
+		const effectType = requireString({ args, key: "effect" });
+		if (!effectsRegistry.has(effectType)) throw new ToolError("Unknown effect");
+		const intensity = readNumber({ args, key: "intensity" });
+		if (intensity !== undefined && (intensity < 0 || intensity > 100))
+			throw new ToolError("Intensity must be 0-100");
+		const refs = resolveRefs({
+			editor: ctx.editor,
+			elementIds: readStringArray({ args, key: "element_ids" }),
+		});
+		if (refs.some(({ element }) => !isVisualElement(element)))
+			throw new ToolError("Effects require visual clips");
+		ctx.editor.timeline.updateElements({
+			updates: refs.map(({ track, element }) => {
+				const effect = buildDefaultEffectInstance({ effectType });
+				if (intensity !== undefined) effect.params.intensity = intensity;
+				return {
+					trackId: track.id,
+					elementId: element.id,
+					patch: {
+						effects: [
+							...(isVisualElement(element) ? (element.effects ?? []) : []),
+							effect,
+						],
+					},
+				};
+			}),
+		});
+		return {
+			result: { affected: refs.length },
+			summary: `Aplicou ${effectsRegistry.get(effectType).name} em ${refs.length} clipe(s)`,
+		};
+	},
+	apply_transition: async ({ ctx, args }) => {
+		const refs = resolveRefs({
+			editor: ctx.editor,
+			elementIds: readStringArray({ args, key: "element_ids" }),
+		});
+		const count = await applyTransition({
+			editor: ctx.editor,
+			preset: requireString({ args, key: "preset" }),
+			mode: readString({ args, key: "mode" }) ?? "both",
+			seconds: readNumber({ args, key: "duration" }) ?? 0.5,
+			replace: readBoolean({ args, key: "replace" }),
+			elements: refs.map(({ track, element }) => ({
+				trackId: track.id,
+				elementId: element.id,
+			})),
+		});
+		return {
+			result: { affected: count },
+			summary: `Aplicou transição em ${count} clipe(s)`,
+		};
+	},
+	cut_at_intervals: async ({ ctx, args }) => {
+		const refs = resolveRefs({
+			editor: ctx.editor,
+			elementIds: readStringArray({ args, key: "element_ids" }),
+		});
+		const count = await cutAtIntervals({
+			editor: ctx.editor,
+			seconds: requireNumber({ args, key: "interval" }),
+			elements: refs.map(({ track, element }) => ({
+				trackId: track.id,
+				elementId: element.id,
+			})),
+		});
+		return {
+			result: { cuts: count },
+			summary: `Criou ${count} corte(s) em intervalos`,
+		};
+	},
 	get_timeline_state: ({ ctx }) => ({
 		result: describeEditorState({ editor: ctx.editor }),
 		summary: "Leu o estado da timeline",
@@ -747,7 +823,7 @@ const handlers: Record<string, ToolHandler> = {
 		};
 	},
 
-	update_text: ({ ctx, args }) => {
+	update_text: async ({ ctx, args }) => {
 		const { editor } = ctx;
 		const { track, element } = findElement({
 			editor,
@@ -761,6 +837,12 @@ const handlers: Record<string, ToolHandler> = {
 		const fontSize = readNumber({ args, key: "font_size" });
 		const color = readString({ args, key: "color" });
 		const bold = readBoolean({ args, key: "bold" });
+		const fontFamily = readString({ args, key: "font_family" });
+		if (fontFamily) {
+			if (!SYSTEM_FONTS.has(fontFamily))
+				await loadFullFont({ family: fontFamily });
+			params.fontFamily = fontFamily;
+		}
 		if (content !== undefined) params.content = content;
 		if (fontSize !== undefined) params.fontSize = fontSize;
 		if (color !== undefined) params.color = color;

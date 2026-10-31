@@ -60,6 +60,11 @@ jobs:
         working-directory: apps/web
         run: bun install --frozen-lockfile
 
+      - name: Build editing presets and test Rust calculations
+        run: |
+          bun run build:editing
+          cargo test --manifest-path rust/crates/editing/Cargo.toml
+
       - name: Build
         working-directory: apps/web
         run: bun run build
