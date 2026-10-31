@@ -40,7 +40,7 @@ const createHugeiconsIcon =
 export const tabs = {
 	assistant: {
 		icon: createHugeiconsIcon({ icon: AiChat02Icon }),
-		label: "AI Assistant",
+		label: "Assistente IA",
 	},
 	media: {
 		icon: createHugeiconsIcon({ icon: Folder03Icon }),
@@ -105,7 +105,7 @@ interface AssetsPanelStore {
 export const useAssetsPanelStore = create<AssetsPanelStore>()(
 	persist(
 		(set) => ({
-			activeTab: "media",
+			activeTab: "assistant",
 			setActiveTab: (tab) => set({ activeTab: tab }),
 			highlightMediaId: null,
 			requestRevealMedia: (mediaId) =>

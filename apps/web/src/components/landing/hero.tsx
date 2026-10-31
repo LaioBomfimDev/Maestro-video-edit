@@ -14,23 +14,23 @@ export function Hero() {
 				src="/landing-page-dark.png"
 				height={1903.5}
 				width={1269}
-				alt="OpenCut video editor landing page background"
+				alt="Maestro video editor landing page background"
 			/>
 			<div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center">
 				<div className="inline-block text-4xl font-bold tracking-tighter md:text-[4rem]">
-					<h1>The open source</h1>
-					<Handlebars>Video editor</Handlebars>
+					<h1>Maestro</h1>
+					<Handlebars>Seu editor com IA</Handlebars>
 				</div>
 
 				<p className="text-muted-foreground mx-auto mt-10 max-w-xl text-base font-light tracking-wide sm:text-xl">
-					A simple but powerful video editor that gets the job done. Works on
-					any platform.
+					Descreva a edição. O assistente trabalha na sua timeline, e você
+					acompanha e desfaz os ajustes quando precisar.
 				</p>
 
 				<div className="mt-8 flex justify-center gap-8">
 					<Link href="/projects">
 						<Button type="submit" size="lg" className="h-11 text-base">
-							Try early beta
+							Começar a editar
 							<ArrowRight className="ml-0.5" />
 						</Button>
 					</Link>

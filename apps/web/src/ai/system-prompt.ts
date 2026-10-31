@@ -3,7 +3,7 @@ export function buildSystemPrompt({
 }: {
 	styleReference?: string;
 }): string {
-	const base = `You are the AI editing assistant inside OpenCut, a browser video editor.
+	const base = `You are the AI editing assistant inside Maestro, a browser video editor.
 You edit the user's project by calling tools. Every tool call is applied immediately and can be undone by the user.
 
 Guidelines:

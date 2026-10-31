@@ -17,6 +17,7 @@ import { ReactMarkdownWrapper } from "@/components/ui/react-markdown-wrapper";
 import { useEditor } from "@/editor/use-editor";
 import { cn } from "@/utils/ui";
 import { type AiChatMessage, useAiChatStore } from "@/ai/chat-store";
+import { GeminiSettings } from "./gemini-settings";
 
 const SUGGESTIONS = [
 	"Corte vícios de linguagem (é, tipo, né), erros e repetições",
@@ -73,16 +74,19 @@ export function AssistantView() {
 			scrollRef={scrollRef}
 			contentClassName="pb-2"
 			actions={
-				messages.length > 0 && (
-					<Button
-						variant="ghost"
-						size="icon"
-						aria-label="Limpar conversa"
-						onClick={clear}
-					>
-						<HugeiconsIcon icon={Delete02Icon} />
-					</Button>
-				)
+				<div className="flex items-center gap-1.5">
+					<GeminiSettings disabled={isRunning} />
+					{messages.length > 0 && (
+						<Button
+							variant="ghost"
+							size="icon"
+							aria-label="Limpar conversa"
+							onClick={clear}
+						>
+							<HugeiconsIcon icon={Delete02Icon} />
+						</Button>
+					)}
+				</div>
 			}
 		>
 			<div className="flex min-h-full flex-col">

@@ -4,6 +4,7 @@ import { webEnv } from "@/env/web";
 import { AI_TOOL_DECLARATIONS } from "@/ai/declarations";
 import { buildSystemPrompt } from "@/ai/system-prompt";
 import { chatRequestSchema, geminiContentSchema } from "@/ai/types";
+import { resolveGeminiApiKey, redactApiKey } from "@/ai/server/api-key";
 
 // Allow the primary model and two 90-second fallback attempts on Vercel.
 export const maxDuration = 300;
@@ -27,13 +28,14 @@ const geminiResponseSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-	const apiKey = webEnv.GEMINI_API_KEY;
-	if (!apiKey) {
+	const credentials = resolveGeminiApiKey(request, webEnv.GEMINI_API_KEY);
+	if ("error" in credentials) {
 		return NextResponse.json(
-			{ error: "GEMINI_API_KEY is not configured on the server." },
-			{ status: 503 },
+			{ error: credentials.error },
+			{ status: credentials.status },
 		);
 	}
+	const { apiKey } = credentials;
 
 	const body = await request.json().catch(() => null);
 	const parsed = chatRequestSchema.safeParse(body);
@@ -102,6 +104,16 @@ export async function POST(request: NextRequest) {
 	const json = await upstream.json().catch(() => null);
 	const data = geminiResponseSchema.safeParse(json);
 
+	if (upstream.status === 401 || upstream.status === 403) {
+		return NextResponse.json(
+			{
+				error:
+					"O Gemini recusou esta chave. Confira ou troque a chave no botão Gemini.",
+			},
+			{ status: upstream.status },
+		);
+	}
+
 	if (upstream.status === 429) {
 		return NextResponse.json(
 			{
@@ -116,7 +128,10 @@ export async function POST(request: NextRequest) {
 		const message = data.success
 			? (data.data.error?.message ?? upstream.statusText)
 			: "Unexpected response from Gemini";
-		return NextResponse.json({ error: message }, { status: 502 });
+		return NextResponse.json(
+			{ error: redactApiKey(message, apiKey) },
+			{ status: 502 },
+		);
 	}
 
 	const candidate = data.data.candidates?.[0];

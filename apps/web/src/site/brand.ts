@@ -1,13 +1,17 @@
-export const SITE_URL = "https://opencut.app";
+const deploymentHost =
+	process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+export const SITE_URL =
+	process.env.NEXT_PUBLIC_SITE_URL ??
+	(deploymentHost ? `https://${deploymentHost}` : "http://localhost:3000");
 
 export const SITE_INFO = {
-	title: "OpenCut",
+	title: "Maestro",
 	description:
-		"A simple but powerful video editor that gets the job done. In your browser.",
+		"Edite seus vídeos com um assistente de IA que executa as edições na sua timeline.",
 	url: SITE_URL,
-	openGraphImage: "/open-graph/default.jpg",
-	twitterImage: "/open-graph/default.jpg",
-	favicon: "/favicon.ico",
+	openGraphImage: "/opengraph-image",
+	twitterImage: "/opengraph-image",
+	favicon: "/logos/maestro/favicon.svg",
 };
 
-export const DEFAULT_LOGO_URL = "/logos/opencut/svg/logo.svg";
+export const DEFAULT_LOGO_URL = "/logos/maestro/icon.svg";

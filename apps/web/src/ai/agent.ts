@@ -1,5 +1,6 @@
 import type { EditorCore } from "@/core";
 import { describeEditorState, executeTool } from "./tools";
+import { geminiRequestHeaders } from "./credentials";
 import {
 	type AiActionLog,
 	type GeminiContent,
@@ -95,7 +96,7 @@ async function requestModel({
 }): Promise<GeminiContent> {
 	const response = await fetch("/api/ai/chat", {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers: geminiRequestHeaders(),
 		body: JSON.stringify({
 			contents: compactHistory({ contents }),
 			styleReference,

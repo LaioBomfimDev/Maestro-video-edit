@@ -50,7 +50,7 @@ function createConfiguredAuth() {
 			},
 		},
 		baseURL: webEnv.NEXT_PUBLIC_SITE_URL,
-		appName: "OpenCut",
+		appName: "Maestro",
 		trustedOrigins: [webEnv.NEXT_PUBLIC_SITE_URL],
 	});
 }

@@ -23,21 +23,21 @@ O editor local funciona sem credenciais de serviços externos. Cadastre os valor
 das integrações desejadas no painel da Vercel; não envie arquivos `.env.local` ao
 Git e não use credenciais fictícias em produção.
 
-| Variável | Valor esperado |
-| --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | URL HTTPS do site |
-| `NEXT_PUBLIC_MARBLE_API_URL` | `https://api.marblecms.com` |
-| `DATABASE_URL` | URL de um PostgreSQL acessível pelo servidor |
-| `BETTER_AUTH_SECRET` | Segredo próprio da instalação |
-| `UPSTASH_REDIS_REST_URL` | URL HTTPS do Redis REST |
-| `UPSTASH_REDIS_REST_TOKEN` | Token do Redis REST |
-| `MARBLE_WORKSPACE_KEY` | Chave do workspace do blog |
-| `FREESOUND_CLIENT_ID` | ID do cliente Freesound |
-| `FREESOUND_API_KEY` | Chave da API Freesound |
-| `GEMINI_API_KEY` | Chave do Gemini, necessária para o chat por IA |
-| `GEMINI_MODEL` | Opcional; modelo principal definido em `.env.example` |
-| `GEMINI_FALLBACK_MODELS` | Opcional; modelos alternativos separados por vírgula |
-| `GEMINI_THINKING_LEVEL` | Opcional; `minimal`, `low`, `medium`, `high` ou `off` |
+| Variável                     | Valor esperado                                        |
+| ---------------------------- | ----------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`       | URL HTTPS do site                                     |
+| `NEXT_PUBLIC_MARBLE_API_URL` | `https://api.marblecms.com`                           |
+| `DATABASE_URL`               | URL de um PostgreSQL acessível pelo servidor          |
+| `BETTER_AUTH_SECRET`         | Segredo próprio da instalação                         |
+| `UPSTASH_REDIS_REST_URL`     | URL HTTPS do Redis REST                               |
+| `UPSTASH_REDIS_REST_TOKEN`   | Token do Redis REST                                   |
+| `MARBLE_WORKSPACE_KEY`       | Chave do workspace do blog                            |
+| `FREESOUND_CLIENT_ID`        | ID do cliente Freesound                               |
+| `FREESOUND_API_KEY`          | Chave da API Freesound                                |
+| `GEMINI_API_KEY`             | Chave do Gemini, necessária para o chat por IA        |
+| `GEMINI_MODEL`               | Opcional; modelo principal definido em `.env.example` |
+| `GEMINI_FALLBACK_MODELS`     | Opcional; modelos alternativos separados por vírgula  |
+| `GEMINI_THINKING_LEVEL`      | Opcional; `minimal`, `low`, `medium`, `high` ou `off` |
 
 As variáveis de serviços são opcionais para o build. Valores preenchidos continuam
 sendo validados. Sem as credenciais correspondentes:
@@ -48,10 +48,27 @@ sendo validados. Sem as credenciais correspondentes:
 - Busca de sons fica indisponível com HTTP 503 sem `FREESOUND_API_KEY` ou Redis
   REST. A proteção de limite de requisições é mantida nos serviços habilitados.
 - Blog fica vazio sem `MARBLE_WORKSPACE_KEY`.
-- Chat por IA retorna HTTP 503 sem `GEMINI_API_KEY`.
+- Chat por IA retorna HTTP 503 quando não há chave no painel Gemini nem
+  `GEMINI_API_KEY` no servidor.
 
 Os projetos e a edição de mídia usam o armazenamento do navegador. Os botões de
 remoção de silêncios e legendas também executam no navegador.
+
+## Trocar a chave pelo próprio Maestro
+
+No editor, abra **Assistente IA → Gemini**, cole a chave e use **Testar conexão**
+ou **Usar chave**. Para criar uma chave, o diálogo oferece um link ao Google AI
+Studio. Não é necessário alterar variáveis da Vercel ou fazer outro deploy.
+
+A chave pessoal fica no `sessionStorage` da aba (ou só na memória, quando o
+navegador bloqueia o armazenamento). Ela é enviada em um header separado para o
+servidor, que a usa para chamar a API do Google; não entra no histórico do chat,
+nos projetos ou no repositório. A chave pessoal tem prioridade sobre a variável
+do servidor. **Remover chave** apaga a chave da aba e volta à chave do servidor,
+se houver. Fechar a aba encerra a sessão de armazenamento da chave.
+
+O teste de conexão lista um modelo disponível, sem gerar texto ou executar
+edições. Trocar a chave não altera a cota do projeto Google ao qual ela pertence.
 
 Não defina `NODE_ENV=development` na Vercel. Para um teste local, copie
 `apps/web/.env.example` para `apps/web/.env.local` e ajuste os valores.
