@@ -51,7 +51,7 @@ export const tabs = {
 	cuts: { icon: createHugeiconsIcon({ icon: ScissorIcon }), label: "Cortes" },
 	sounds: {
 		icon: createHugeiconsIcon({ icon: HeadphonesIcon }),
-		label: "Sounds",
+		label: "Sons",
 	},
 	text: {
 		icon: createHugeiconsIcon({ icon: TextIcon }),
@@ -75,7 +75,7 @@ export const tabs = {
 	},
 	adjustment: {
 		icon: createHugeiconsIcon({ icon: SlidersHorizontalIcon }),
-		label: "Adjustment",
+		label: "Imagem e cor",
 	},
 	settings: {
 		icon: createHugeiconsIcon({ icon: Settings01Icon }),

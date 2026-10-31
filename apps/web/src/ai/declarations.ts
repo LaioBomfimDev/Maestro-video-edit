@@ -1,3 +1,6 @@
+import { TRANSITION_PRESETS } from "@/editing/presets";
+import { TEXT_PRESETS } from "@/text/presets";
+import sounds from "@/sounds/builtin-catalog.json";
 const time = (description: string) => ({ type: "number", description });
 
 const elementIds = {
@@ -7,6 +10,73 @@ const elementIds = {
 };
 
 export const AI_TOOL_DECLARATIONS = [
+	{
+		name: "adjust_image",
+		description:
+			"Color-correct photos or video clips non-destructively. Unspecified controls keep their values. Exposure -2..2 EV; brightness, contrast, saturation, temperature and tint -100..100.",
+		parameters: {
+			type: "object",
+			properties: {
+				element_ids: elementIds,
+				exposure: { type: "number" },
+				brightness: { type: "number" },
+				contrast: { type: "number" },
+				saturation: { type: "number" },
+				temperature: { type: "number" },
+				tint: { type: "number" },
+			},
+			required: ["element_ids"],
+		},
+	},
+	{
+		name: "edit_image",
+		description:
+			"Sends a photo to Gemini image editing, applies the requested generative edit and stores a new version, preserving the original media. Use ONLY for explicit requests to edit photo contents (background, objects, style, restoration). For color adjustments use adjust_image. This consumes the user's image API quota. Needs a personal Gemini key.",
+		parameters: {
+			type: "object",
+			properties: {
+				element_id: { type: "string" },
+				prompt: {
+					type: "string",
+					description: "Detailed edit instruction, preserve unrelated details.",
+				},
+			},
+			required: ["element_id", "prompt"],
+		},
+	},
+	{
+		name: "add_sound",
+		description:
+			"Adds an original Maestro sound at a timeline position. Local library, no external API.",
+		parameters: {
+			type: "object",
+			properties: {
+				sound_id: { type: "string", enum: sounds.map((s) => s.id) },
+				start: {
+					type: "number",
+					description: "Seconds. Omit to use playhead.",
+				},
+				volume_db: { type: "number", description: "-60 to 0. Default -12." },
+			},
+			required: ["sound_id"],
+		},
+	},
+	{
+		name: "add_styled_text",
+		description:
+			"Adds a styled title using a Maestro text preset and its font. Font may download from Google Fonts.",
+		parameters: {
+			type: "object",
+			properties: {
+				style: { type: "string", enum: TEXT_PRESETS.map((p) => p.id) },
+				content: { type: "string" },
+				start: { type: "number" },
+				duration: { type: "number" },
+			},
+			required: ["style", "content", "start", "duration"],
+		},
+	},
+
 	{
 		name: "apply_visual_effect",
 		description: "Adds a visual effect to clips with intensity 0-100.",
@@ -30,6 +100,14 @@ export const AI_TOOL_DECLARATIONS = [
 						"hue",
 						"vignette",
 						"pixelate",
+						"cinematic",
+						"faded",
+						"noir",
+						"dream",
+						"sunset",
+						"arctic",
+						"scanlines",
+						"grain",
 					],
 				},
 				intensity: { type: "number" },
@@ -47,16 +125,7 @@ export const AI_TOOL_DECLARATIONS = [
 				element_ids: elementIds,
 				preset: {
 					type: "string",
-					enum: [
-						"fade",
-						"zoom-in",
-						"zoom-out",
-						"slide-left",
-						"slide-right",
-						"slide-up",
-						"slide-down",
-						"rotate",
-					],
+					enum: TRANSITION_PRESETS.map((p) => p.id),
 				},
 				mode: { type: "string", enum: ["in", "out", "both"] },
 				duration: {

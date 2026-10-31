@@ -164,7 +164,11 @@ export async function runAgent({
 			if (!call) continue;
 			callbacks.onProgress(`Executando ${call.name}...`);
 			const outcome = await executeTool({
-				ctx: { editor, onProgress: (message) => callbacks.onProgress(message) },
+				ctx: {
+					editor,
+					signal,
+					onProgress: (message) => callbacks.onProgress(message),
+				},
 				name: call.name,
 				args: call.args ?? {},
 			});

@@ -1,0 +1,128 @@
+[
+  {
+    "id": "whoosh",
+    "name": "Passagem de ar",
+    "category": "Transi��es",
+    "duration": 0.7,
+    "url": "/sounds/maestro/whoosh.wav"
+  },
+  {
+    "id": "swoosh",
+    "name": "Varredura r�pida",
+    "category": "Transi��es",
+    "duration": 0.7,
+    "url": "/sounds/maestro/swoosh.wav"
+  },
+  {
+    "id": "impact",
+    "name": "Impacto grave",
+    "category": "Impactos",
+    "duration": 0.8,
+    "url": "/sounds/maestro/impact.wav"
+  },
+  {
+    "id": "pop",
+    "name": "Pop",
+    "category": "Interface",
+    "duration": 0.15,
+    "url": "/sounds/maestro/pop.wav"
+  },
+  {
+    "id": "click",
+    "name": "Clique",
+    "category": "Interface",
+    "duration": 0.08,
+    "url": "/sounds/maestro/click.wav"
+  },
+  {
+    "id": "notification",
+    "name": "Notifica��o",
+    "category": "Alertas",
+    "duration": 1,
+    "url": "/sounds/maestro/notification.wav"
+  },
+  {
+    "id": "message",
+    "name": "Mensagem",
+    "category": "Alertas",
+    "duration": 1,
+    "url": "/sounds/maestro/message.wav"
+  },
+  {
+    "id": "riser",
+    "name": "Subida de tens�o",
+    "category": "Transi��es",
+    "duration": 1.8,
+    "url": "/sounds/maestro/riser.wav"
+  },
+  {
+    "id": "downer",
+    "name": "Descida",
+    "category": "Transi��es",
+    "duration": 1.8,
+    "url": "/sounds/maestro/downer.wav"
+  },
+  {
+    "id": "kick",
+    "name": "Bumbo",
+    "category": "Percuss�o",
+    "duration": 0.5,
+    "url": "/sounds/maestro/kick.wav"
+  },
+  {
+    "id": "snare",
+    "name": "Caixa",
+    "category": "Percuss�o",
+    "duration": 0.3,
+    "url": "/sounds/maestro/snare.wav"
+  },
+  {
+    "id": "hat",
+    "name": "Chimbal",
+    "category": "Percuss�o",
+    "duration": 0.14,
+    "url": "/sounds/maestro/hat.wav"
+  },
+  {
+    "id": "clap",
+    "name": "Palma",
+    "category": "Percuss�o",
+    "duration": 0.35,
+    "url": "/sounds/maestro/clap.wav"
+  },
+  {
+    "id": "sparkle",
+    "name": "Brilho",
+    "category": "Alertas",
+    "duration": 0.8,
+    "url": "/sounds/maestro/sparkle.wav"
+  },
+  {
+    "id": "success",
+    "name": "Conquista",
+    "category": "Alertas",
+    "duration": 1.2,
+    "url": "/sounds/maestro/success.wav"
+  },
+  {
+    "id": "ambient",
+    "name": "Atmosfera suave",
+    "category": "Ambientes",
+    "duration": 3,
+    "url": "/sounds/maestro/ambient.wav"
+  },
+  {
+    "id": "glitch",
+    "name": "Falha digital",
+    "category": "Impactos",
+    "duration": 0.4,
+    "url": "/sounds/maestro/glitch.wav"
+  },
+  {
+    "id": "pulse",
+    "name": "Pulso de suspense",
+    "category": "Ambientes",
+    "duration": 1.5,
+    "url": "/sounds/maestro/pulse.wav"
+  }
+]

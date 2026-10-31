@@ -1,3 +1,12 @@
+import { ADJUSTMENT_CONTROLS } from "@/effects/definitions/adjustment";
+import { TEXT_PRESETS } from "@/text/presets";
+import { buildTextElement } from "@/timeline/element-utils";
+import { addBuiltinSound } from "@/sounds/builtin";
+import {
+	getImageTarget,
+	requestImageEdit,
+	applyImageEdit,
+} from "./image-editing";
 import type { EditorCore } from "@/core";
 import type { SceneTracks, TimelineElement, TimelineTrack } from "@/timeline";
 import {
@@ -35,6 +44,7 @@ import { SYSTEM_FONTS } from "@/fonts/system-fonts";
 type Args = Record<string, unknown>;
 
 export interface ToolContext {
+	signal?: AbortSignal;
 	editor: EditorCore;
 	onProgress?: (message: string) => void;
 }
@@ -458,6 +468,123 @@ type ToolHandler = (params: {
 }) => Promise<Omit<ToolOutcome, "ok">> | Omit<ToolOutcome, "ok">;
 
 const handlers: Record<string, ToolHandler> = {
+	adjust_image: ({ ctx, args }) => {
+		const refs = resolveRefs({
+			editor: ctx.editor,
+			elementIds: readStringArray({ args, key: "element_ids" }),
+		});
+		if (refs.some(({ element }) => !isVisualElement(element)))
+			throw new ToolError("Select visual clips for color adjustment");
+		const values: Record<string, number> = {};
+		for (const control of ADJUSTMENT_CONTROLS) {
+			const value = readNumber({ args, key: control.key });
+			if (value !== undefined) {
+				if (value < control.min || value > control.max)
+					throw new ToolError(`Invalid ${control.key}`);
+				values[control.key] = value;
+			}
+		}
+		if (!Object.keys(values).length)
+			throw new ToolError("Provide at least one adjustment");
+		ctx.editor.timeline.updateElements({
+			updates: refs.map(({ track, element }) => {
+				const effects = isVisualElement(element) ? (element.effects ?? []) : [];
+				const existing = effects.find((e) => e.type === "color-adjustment");
+				const instance =
+					existing ??
+					buildDefaultEffectInstance({ effectType: "color-adjustment" });
+				const next = {
+					...instance,
+					enabled: true,
+					params: { ...instance.params, ...values },
+				};
+				return {
+					trackId: track.id,
+					elementId: element.id,
+					patch: {
+						effects: existing
+							? effects.map((e) => (e.id === instance.id ? next : e))
+							: [...effects, next],
+					},
+				};
+			}),
+		});
+		return {
+			result: { affected: refs.length },
+			summary: `Tratou a imagem em ${refs.length} clipe(s)`,
+		};
+	},
+	edit_image: async ({ ctx, args }) => {
+		const ref = findElement({
+			editor: ctx.editor,
+			elementId: requireString({ args, key: "element_id" }),
+		});
+		const target = getImageTarget({
+			editor: ctx.editor,
+			elements: [{ trackId: ref.track.id, elementId: ref.element.id }],
+		});
+		ctx.onProgress?.("Editando a foto com Gemini…");
+		const blob = await requestImageEdit({
+			target,
+			prompt: requireString({ args, key: "prompt" }),
+			signal: ctx.signal,
+		});
+		ctx.signal?.throwIfAborted();
+		const result = await applyImageEdit({
+			editor: ctx.editor,
+			target,
+			blob,
+			signal: ctx.signal,
+		});
+		return {
+			result,
+			summary:
+				"Criou e aplicou uma nova versão da foto; original preservado na mídia",
+		};
+	},
+	add_sound: async ({ ctx, args }) => {
+		const result = await addBuiltinSound({
+			editor: ctx.editor,
+			id: requireString({ args, key: "sound_id" }),
+			start: readNumber({ args, key: "start" }),
+			volume: readNumber({ args, key: "volume_db" }) ?? -12,
+		});
+		return { result, summary: `Adicionou o som ${result.name}` };
+	},
+	add_styled_text: async ({ ctx, args }) => {
+		const style = TEXT_PRESETS.find(
+			(p) => p.id === requireString({ args, key: "style" }),
+		);
+		if (!style) throw new ToolError("Unknown text preset");
+		const content = requireString({ args, key: "content" });
+		const start = requireNumber({ args, key: "start" });
+		const duration = requireNumber({ args, key: "duration" });
+		if (start < 0 || duration < 0.1 || duration > 600)
+			throw new ToolError("Invalid text timing");
+		const sceneId = ctx.editor.scenes.getActiveScene().id;
+		if (!SYSTEM_FONTS.has(style.font))
+			await loadFullFont({ family: style.font });
+		ctx.signal?.throwIfAborted();
+		if (ctx.editor.scenes.getActiveScene().id !== sceneId)
+			throw new ToolError("Scene changed");
+		const element = buildTextElement({
+			raw: {
+				name: content.slice(0, 32),
+				duration: toTime({ seconds: duration }),
+				params: { ...style.params, content, fontFamily: style.font },
+			},
+			startTime: toTime({ seconds: start }),
+		});
+		ctx.editor.timeline.insertElement({
+			element,
+			placement: { mode: "auto", trackType: "text" },
+		});
+		return {
+			result: { style: style.name },
+			summary: `Adicionou texto no estilo ${style.name}`,
+		};
+	},
+
 	apply_visual_effect: ({ ctx, args }) => {
 		const effectType = requireString({ args, key: "effect" });
 		if (!effectsRegistry.has(effectType)) throw new ToolError("Unknown effect");

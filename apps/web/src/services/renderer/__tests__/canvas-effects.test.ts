@@ -67,3 +67,25 @@ describe("canvas effects render real pixels", () => {
 		).toBe(0);
 	});
 });
+
+test("manual correction has a neutral identity and renders exposure without changing alpha", () => {
+	const original = source({ color: "rgba(80,40,20,0.5)" });
+	expect(
+		renderCanvasEffect({
+			source: original,
+			width: 32,
+			height: 32,
+			pass: { shader: "canvas-adjustment", uniforms: {} },
+		}),
+	).toBe(original);
+	const output = renderCanvasEffect({
+		source: original,
+		width: 32,
+		height: 32,
+		pass: { shader: "canvas-adjustment", uniforms: { exposure: 1 } },
+	});
+	expect(pixel({ canvas: output })[0]).toBeGreaterThan(
+		pixel({ canvas: original })[0],
+	);
+	expect(pixel({ canvas: output })[3]).toBe(pixel({ canvas: original })[3]);
+});

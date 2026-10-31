@@ -23,6 +23,9 @@ const SUGGESTIONS = [
 	"Corte vícios de linguagem (é, tipo, né), erros e repetições",
 	"Remova os silêncios de forma agressiva, estilo jump cut",
 	"Crie um título de abertura nos primeiros 3 segundos",
+	"Melhore as cores e a iluminação das fotos selecionadas",
+	"Adicione um som de passagem entre os primeiros clipes",
+	"Troque o fundo da foto selecionada por um estúdio claro, mantendo o assunto principal",
 	"Faça um corte de até 30s só com os melhores trechos",
 ];
 
@@ -90,6 +93,11 @@ export function AssistantView() {
 			}
 		>
 			<div className="flex min-h-full flex-col">
+				<p className="mb-2 text-[10px] text-muted-foreground">
+					Pedidos de alteração do conteúdo de fotos enviam a imagem ao Gemini e
+					podem consumir saldo da chave. Para comparar uma prévia antes de
+					aplicar, use Imagem e cor.
+				</p>
 				<div className="flex flex-1 flex-col gap-3">
 					{messages.length === 0 ? (
 						<EmptyState onPick={(text) => submit({ text })} />

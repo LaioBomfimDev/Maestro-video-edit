@@ -15,6 +15,7 @@ import { TextView } from "@/text/components/assets-view";
 import { EffectsView } from "@/effects/components/assets-view";
 import { AssistantView } from "@/ai/components/assistant-view";
 import { TransitionsView } from "@/editing/components/transitions-view";
+import { AdjustmentView } from "@/effects/components/adjustment-view";
 import { CutsView } from "@/editing/components/cuts-view";
 
 export function AssetsPanel() {
@@ -30,11 +31,7 @@ export function AssetsPanel() {
 		effects: <EffectsView />,
 		transitions: <TransitionsView />,
 		captions: <Captions />,
-		adjustment: (
-			<div className="text-muted-foreground p-4">
-				Adjustment view coming soon...
-			</div>
-		),
+		adjustment: <AdjustmentView />,
 		settings: <SettingsView />,
 	};
 

@@ -2,6 +2,13 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export const FEATURED_FONTS = [
+	"Orbitron",
+	"Manrope",
+	"Archivo Black",
+	"DM Serif Display",
+	"Rubik",
+	"JetBrains Mono",
+	"Bodoni Moda",
 	"Montserrat",
 	"Poppins",
 	"Inter",

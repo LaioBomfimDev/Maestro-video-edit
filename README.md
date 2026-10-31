@@ -15,14 +15,22 @@ Remoção de silêncios e legendas usam processamento local no navegador. O chat
 
 ## Efeitos, transições, cortes e texto
 
-- **Efeitos:** 13 opções com intensidade ajustável, incluindo preto e branco, sépia, cinema retrô, luz quente/fria, vinheta e pixelização. O botão `+` aplica à seleção; sem seleção, cria uma faixa de efeito.
-- **Transições:** 8 animações de entrada/saída com duração por ponta. Dissolver faz uma passagem pelo fundo entre clipes consecutivos. Animações existentes ficam protegidas até marcar a opção de substituir.
+- **Efeitos:** 21 efeitos com intensidade ajustável, mais correção de cor dedicada, incluindo preto e branco, sépia, cinema retrô, luz quente/fria, vinheta e pixelização. O botão `+` aplica à seleção; sem seleção, cria uma faixa de efeito.
+- **Transições:** 14 animações de entrada/saída com duração por ponta. Dissolver faz uma passagem pelo fundo entre clipes consecutivos. Animações existentes ficam protegidas até marcar a opção de substituir.
+- **Sons:** 18 sons originais locais, com prévia e adição ao cursor. Transições, impactos, percussão e alertas funcionam sem API de sons; a busca externa continua opcional.
+- **Imagem e cor:** exposição, brilho, contraste, saturação, temperatura e matiz. Baixe o quadro atual como PNG com a composição e os ajustes.
 - **Cortes:** divisão no cursor, aparar pontas e cortes em intervalos de 0,1 a 60 segundos. Um Ctrl+Z desfaz todo o conjunto de cortes em intervalos.
-- **Texto e fontes:** texto simples e 10 estilos prontos, fontes em destaque e favoritas salvas no navegador. Fontes do Google precisam de conexão; fontes do sistema continuam disponíveis.
+- **Texto e fontes:** texto simples e 20 estilos prontos, fontes em destaque e favoritas salvas no navegador. Fontes do Google precisam de conexão; fontes do sistema continuam disponíveis.
 
 O assistente também pode aplicar efeitos, transições, cortes em intervalos e trocar fontes por pedido no chat. Prévia e exportação usam o mesmo compositor. Efeitos de cor usam Canvas 2D, podendo aumentar o tempo de renderização em vídeos de alta resolução.
 
-Os cálculos de transição e cortes estão em `rust/crates/editing`. Para recompilar após alterações, instale o target com `rustup target add wasm32-unknown-unknown` e execute `bun run build:editing`. O pequeno binário em `apps/web/public/editing` é versionado para que o deploy Vercel não dependa da instalação do Rust.
+## Editar fotos com IA
+
+Selecione uma foto na timeline e abra **Imagem e cor → Editar foto com IA**. Escreva o pedido, escolha o modelo e gere uma prévia. Use a versão editada no clipe ou baixe a imagem. O original permanece na mídia e Ctrl+Z desfaz a substituição. A entrada é uma cópia de até 1600 px; a saída é limitada a 2048 px.
+
+Esse recurso exige a chave pessoal configurada no botão Gemini, acesso a um modelo de imagem e saldo/cota no Google. A imagem e o pedido passam pelo servidor Maestro e pelo Google. O chat também aceita pedidos explícitos de edição de fotos e aplica a nova versão diretamente, com desfazer. Correção de cor, sons locais e animações não enviam imagens. Não é edição generativa de vídeo.
+
+Os cálculos de transição, cortes e síntese de sons estão em `rust/crates/editing`. Para recompilar após alterações, instale o target com `rustup target add wasm32-unknown-unknown` e execute `bun run build:editing`. O pequeno binário em `apps/web/public/editing` é versionado para que o deploy Vercel não dependa da instalação do Rust.
 
 ## Desenvolvimento local
 

@@ -35,17 +35,26 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
+import { BuiltinSoundsView } from "./builtin-view";
+
 export function SoundsView() {
 	return (
 		<div className="flex h-full flex-col">
-			<Tabs defaultValue="sound-effects" className="flex h-full flex-col">
+			<Tabs defaultValue="maestro" className="flex h-full flex-col">
 				<div className="px-3 pt-4 pb-0">
 					<TabsList>
-						<TabsTrigger value="sound-effects">Sound effects</TabsTrigger>
-						<TabsTrigger value="saved">Saved</TabsTrigger>
+						<TabsTrigger value="maestro">Maestro</TabsTrigger>
+						<TabsTrigger value="sound-effects">Buscar</TabsTrigger>
+						<TabsTrigger value="saved">Salvos</TabsTrigger>
 					</TabsList>
 				</div>
 				<Separator className="my-4" />
+				<TabsContent
+					value="maestro"
+					className="mt-0 min-h-0 flex-1 overflow-y-auto px-3"
+				>
+					<BuiltinSoundsView />
+				</TabsContent>
 				<TabsContent
 					value="sound-effects"
 					className="mt-0 flex min-h-0 flex-1 flex-col p-5 pt-0"
@@ -186,12 +195,10 @@ function SoundEffectsView() {
 		return () => clearTimeout(timeoutId);
 	}, [scrollPosition, scrollAreaRef]);
 
-	const handleScrollWithPosition = ({
-		currentTarget,
-	}: React.UIEvent<HTMLDivElement>) => {
-		const { scrollTop } = currentTarget;
+	const handleScrollWithPosition = (event: React.UIEvent<HTMLDivElement>) => {
+		const { scrollTop } = event.currentTarget;
 		setScrollPosition({ position: scrollTop });
-		handleScroll({ currentTarget } as React.UIEvent<HTMLDivElement>);
+		handleScroll(event);
 	};
 
 	const displayedSounds = searchQuery ? searchResults : topSoundEffects;
