@@ -9,7 +9,7 @@ import {
 	chatResponseSchema,
 } from "./types";
 
-const MAX_AGENT_STEPS = 12;
+const MAX_AGENT_STEPS = 20;
 
 export interface AgentCallbacks {
 	onText: (text: string) => void;
@@ -89,10 +89,14 @@ export function buildUserContent({
 async function requestModel({
 	contents,
 	styleReference,
+	visualAnalysisEnabled = false,
+	allowTools = true,
 	signal,
 }: {
 	contents: GeminiContent[];
 	styleReference?: string;
+	visualAnalysisEnabled?: boolean;
+	allowTools?: boolean;
 	signal: AbortSignal;
 }): Promise<GeminiContent> {
 	const apiKey = getGeminiApiKey();
@@ -102,6 +106,8 @@ async function requestModel({
 		body: JSON.stringify({
 			contents: compactHistory({ contents }),
 			styleReference,
+			visualAnalysisEnabled,
+			allowTools,
 		}),
 		signal,
 	});
@@ -125,22 +131,36 @@ export async function runAgent({
 	editor,
 	contents,
 	styleReference,
+	visualAnalysisEnabled = false,
 	signal,
 	callbacks,
 }: {
 	editor: EditorCore;
 	contents: GeminiContent[];
 	styleReference?: string;
+	visualAnalysisEnabled?: boolean;
 	signal: AbortSignal;
 	callbacks: AgentCallbacks;
 }): Promise<GeminiContent[]> {
 	const history = [...contents];
+	const projectId = editor.project.getActive().metadata.id;
+	const sceneId = editor.scenes.getActiveScene().id;
 
-	for (let step = 0; step < MAX_AGENT_STEPS; step++) {
+	for (let step = 0; step <= MAX_AGENT_STEPS; step++) {
+		signal.throwIfAborted();
+		if (
+			editor.project.getActive().metadata.id !== projectId ||
+			editor.scenes.getActiveScene().id !== sceneId
+		)
+			throw new Error(
+				"A cena mudou. Envie o pedido novamente no projeto atual.",
+			);
 		callbacks.onProgress("Pensando...");
 		const modelContent = await requestModel({
 			contents: history,
 			styleReference,
+			visualAnalysisEnabled,
+			allowTools: step < MAX_AGENT_STEPS,
 			signal,
 		});
 		history.push(modelContent);
@@ -154,7 +174,7 @@ export async function runAgent({
 		}
 
 		const calls = modelContent.parts.filter((part) => part.functionCall);
-		if (calls.length === 0) {
+		if (calls.length === 0 || step === MAX_AGENT_STEPS) {
 			break;
 		}
 
@@ -163,13 +183,25 @@ export async function runAgent({
 			if (signal.aborted) {
 				throw new DOMException("Aborted", "AbortError");
 			}
+			if (
+				editor.project.getActive().metadata.id !== projectId ||
+				editor.scenes.getActiveScene().id !== sceneId
+			)
+				throw new Error(
+					"A cena mudou. Envie o pedido novamente no projeto atual.",
+				);
 			const call = part.functionCall;
 			if (!call) continue;
-			callbacks.onProgress(`Executando ${call.name}...`);
+			callbacks.onProgress(
+				call.name === "inspect_preview"
+					? "Analisando o quadro com Gemini…"
+					: "Executando edição no projeto…",
+			);
 			const outcome = await executeTool({
 				ctx: {
 					editor,
 					signal,
+					visualAnalysisEnabled,
 					onProgress: (message) => callbacks.onProgress(message),
 				},
 				name: call.name,
@@ -183,7 +215,11 @@ export async function runAgent({
 				});
 			}
 			responses.push({
-				functionResponse: { name: call.name, response: outcome.result },
+				functionResponse: {
+					name: call.name,
+					...(call.id ? { id: call.id } : {}),
+					response: outcome.result,
+				},
 			});
 		}
 		history.push({ role: "user", parts: responses });

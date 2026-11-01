@@ -1,3 +1,5 @@
+import type { MediaTime } from "@/wasm";
+import { roundMediaTime } from "@/wasm";
 import type { EditorCore } from "@/core";
 import type { RootNode } from "@/services/renderer/nodes/root-node";
 import type { ExportOptions, ExportResult } from "@/export";
@@ -6,7 +8,6 @@ import { SceneExporter } from "@/services/renderer/scene-exporter";
 import { buildScene } from "@/services/renderer/scene-builder";
 import { createTimelineAudioBuffer } from "@/media/audio";
 import { formatTimecode } from "opencut-wasm";
-import { frameRateToFloat } from "@/fps/utils";
 import { downloadBlob } from "@/utils/browser";
 
 type SnapshotResult =
@@ -15,6 +16,132 @@ type SnapshotResult =
 
 export class RendererManager {
 	private renderTree: RootNode | null = null;
+	private previewCapture: {
+		time: number;
+		projectId: string;
+		sceneId: string;
+		finish: (
+			result:
+				| { time: MediaTime; data: string; width: number; height: number }
+				| Error,
+		) => void;
+	} | null = null;
+
+	hasPendingPreviewCapture(): boolean {
+		return this.previewCapture !== null;
+	}
+
+	capturePreviewFrame({ signal }: { signal?: AbortSignal } = {}): Promise<{
+		time: MediaTime;
+		data: string;
+		width: number;
+		height: number;
+	}> {
+		signal?.throwIfAborted();
+		if (this.previewCapture)
+			return Promise.reject(
+				new Error("Uma captura visual já está em andamento."),
+			);
+		if (!this.renderTree || this.editor.timeline.getTotalDuration() === 0)
+			return Promise.reject(
+				new Error("Adicione conteúdo à timeline antes de analisar a imagem."),
+			);
+		this.editor.playback.pause();
+		const expectedTime = Math.min(
+			this.editor.playback.getCurrentTime(),
+			this.editor.timeline.getLastFrameTime(),
+		);
+		return new Promise((resolve, reject) => {
+			const onAbort = () => finish(new DOMException("Aborted", "AbortError"));
+			const timer = setTimeout(
+				() =>
+					finish(
+						new Error(
+							"A prévia não ficou pronta para captura. Aguarde o carregamento da mídia e tente novamente.",
+						),
+					),
+				10000,
+			);
+			const finish = (
+				result:
+					| { time: MediaTime; data: string; width: number; height: number }
+					| Error,
+			) => {
+				clearTimeout(timer);
+				signal?.removeEventListener("abort", onAbort);
+				this.previewCapture = null;
+				if (result instanceof Error) reject(result);
+				else resolve(result);
+			};
+			this.previewCapture = {
+				time: expectedTime,
+				projectId: this.editor.project.getActive().metadata.id,
+				sceneId: this.editor.scenes.getActiveScene().id,
+				finish,
+			};
+			signal?.addEventListener("abort", onAbort, { once: true });
+		});
+	}
+
+	completePreviewCapture({
+		canvas,
+		time,
+		renderTree,
+	}: {
+		canvas: HTMLCanvasElement;
+		time: number;
+		renderTree: RootNode;
+	}): void {
+		const capture = this.previewCapture;
+		if (!capture) return;
+		try {
+			if (
+				capture.projectId !== this.editor.project.getActive().metadata.id ||
+				capture.sceneId !== this.editor.scenes.getActiveScene().id
+			)
+				throw new Error("A cena mudou durante a captura.");
+			if (
+				Math.min(
+					this.editor.playback.getCurrentTime(),
+					this.editor.timeline.getLastFrameTime(),
+				) !== capture.time
+			)
+				throw new Error(
+					"A posição da prévia mudou durante a captura. Tente novamente.",
+				);
+			if (renderTree !== this.renderTree || time !== capture.time) return;
+			const ratio = Math.min(1, 960 / Math.max(canvas.width, canvas.height));
+			const output = document.createElement("canvas");
+			output.width = Math.max(1, Math.round(canvas.width * ratio));
+			output.height = Math.max(1, Math.round(canvas.height * ratio));
+			const context = output.getContext("2d");
+			if (!context)
+				throw new Error("Não foi possível capturar a prévia neste navegador.");
+			context.drawImage(canvas, 0, 0, output.width, output.height);
+			const data = output.toDataURL("image/jpeg", 0.78).split(",")[1];
+			if (!data || data.length > 800000)
+				throw new Error("O quadro capturado ficou muito grande.");
+			capture.finish({
+				time: roundMediaTime({ time }),
+				data,
+				width: output.width,
+				height: output.height,
+			});
+		} catch (error) {
+			capture.finish(
+				error instanceof Error ? error : new Error("Falha ao capturar quadro."),
+			);
+		}
+	}
+
+	failPreviewCapture({ error }: { error: unknown }): void {
+		this.previewCapture?.finish(
+			error instanceof Error
+				? error
+				: new Error("Não foi possível renderizar o quadro para análise."),
+		);
+	}
+
 	private _isDegraded = false;
 	private listeners = new Set<() => void>();
 
@@ -122,7 +249,10 @@ export class RendererManager {
 				return { success: false, error: "Failed to create image" };
 			}
 
-			const timecode = formatTimecode({ time: renderTime, rate: fps })!.replace(/:/g, "-");
+			const timecode = formatTimecode({ time: renderTime, rate: fps })!.replace(
+				/:/g,
+				"-",
+			);
 			const safeName =
 				activeProject.metadata.name.replace(/[<>:"/\\|?*]/g, "-").trim() ||
 				"snapshot";

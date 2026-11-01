@@ -11,6 +11,131 @@ const elementIds = {
 
 export const AI_TOOL_DECLARATIONS = [
 	{
+		name: "inspect_preview",
+		description:
+			"Analyze the actual CURRENT rendered preview with Gemini vision: composition, colors, readability, visible content. Requires the user's Vision toggle. Sends one compressed frame and consumes API quota. Use seek first to inspect another time. It cannot infer audio or unseen frames.",
+		parameters: {
+			type: "object",
+			properties: { question: { type: "string" } },
+			required: ["question"],
+		},
+	},
+	{
+		name: "get_editing_catalog",
+		description:
+			"Read the real effect parameter names/ranges and available transitions, text presets and sounds. Use before choosing unfamiliar effects. No API call beyond this chat.",
+		parameters: { type: "object", properties: {} },
+	},
+	{
+		name: "set_transform",
+		description:
+			"Set visual clip position (x/y in canvas pixels, 0/0 is center), scale (1 is normal) or rotation in degrees. All supplied fields apply to all target clips. Preserves animations unless explicitly replacing them.",
+		parameters: {
+			type: "object",
+			properties: {
+				element_ids: elementIds,
+				x: { type: "number" },
+				y: { type: "number" },
+				scale_x: { type: "number" },
+				scale_y: { type: "number" },
+				rotation: { type: "number" },
+				replace_animation: { type: "boolean" },
+			},
+			required: ["element_ids"],
+		},
+	},
+	{
+		name: "animate_property",
+		description:
+			"Create a custom two-keyframe animation: pan, zoom, rotation, fade or volume fade. Times start/end are RELATIVE to the start of EACH clip, in seconds, within its duration. Existing animation is protected unless replace=true. Values follow the selected property (opacity 0..1, volume in dB).",
+		parameters: {
+			type: "object",
+			properties: {
+				element_ids: elementIds,
+				property: {
+					type: "string",
+					enum: [
+						"transform.positionX",
+						"transform.positionY",
+						"transform.scaleX",
+						"transform.scaleY",
+						"transform.rotate",
+						"opacity",
+						"volume",
+					],
+				},
+				from: { type: "number" },
+				to: { type: "number" },
+				start: { type: "number" },
+				end: { type: "number" },
+				interpolation: { type: "string", enum: ["linear", "hold"] },
+				replace: { type: "boolean" },
+			},
+			required: ["element_ids", "property", "from", "to", "end"],
+		},
+	},
+	{
+		name: "edit_effect",
+		description:
+			"Modify, enable, disable or remove an EXISTING effect instance, identified by effect_id in the state. For parameter names/types/ranges call get_editing_catalog. Preserves other effects on the clip.",
+		parameters: {
+			type: "object",
+			properties: {
+				element_id: { type: "string" },
+				effect_id: { type: "string" },
+				enabled: { type: "boolean" },
+				remove: { type: "boolean" },
+				replace_animation: {
+					type: "boolean",
+					description:
+						"Explicitly replace an animated effect parameter with a fixed value.",
+				},
+				params: {
+					type: "array",
+					items: {
+						type: "object",
+						properties: {
+							key: { type: "string" },
+							value: {
+								anyOf: [
+									{ type: "number" },
+									{ type: "string" },
+									{ type: "boolean" },
+								],
+							},
+						},
+						required: ["key", "value"],
+					},
+				},
+			},
+			required: ["element_id", "effect_id"],
+		},
+	},
+	{
+		name: "duplicate_elements",
+		description:
+			"Duplicate timeline clips with native placement and fresh IDs. Use the returned state to position/edit the copies.",
+		parameters: {
+			type: "object",
+			properties: { element_ids: elementIds },
+			required: ["element_ids"],
+		},
+	},
+	{
+		name: "set_project_format",
+		description:
+			"Change the canvas size, optionally with a solid background. Reversible. Reels/Shorts/TikTok 1080x1920; landscape 1920x1080; square 1080x1080. Does not automatically reframe subjects: use set_transform after changing size.",
+		parameters: {
+			type: "object",
+			properties: {
+				width: { type: "integer" },
+				height: { type: "integer" },
+				background_color: { type: "string", description: "#RRGGBB" },
+			},
+			required: ["width", "height"],
+		},
+	},
+	{
 		name: "adjust_image",
 		description:
 			"Color-correct photos or video clips non-destructively. Unspecified controls keep their values. Exposure -2..2 EV; brightness, contrast, saturation, temperature and tint -100..100.",

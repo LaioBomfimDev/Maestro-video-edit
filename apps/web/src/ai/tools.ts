@@ -1,3 +1,4 @@
+import { createAdvancedTools } from "./advanced-tools";
 import { ADJUSTMENT_CONTROLS } from "@/effects/definitions/adjustment";
 import { TEXT_PRESETS } from "@/text/presets";
 import { buildTextElement } from "@/timeline/element-utils";
@@ -45,6 +46,7 @@ type Args = Record<string, unknown>;
 
 export interface ToolContext {
 	signal?: AbortSignal;
+	visualAnalysisEnabled?: boolean;
 	editor: EditorCore;
 	onProgress?: (message: string) => void;
 }
@@ -184,6 +186,7 @@ function describeElement({ element }: { element: TimelineElement }) {
 	}
 	if (element.type === "text") {
 		description.content = element.params.content;
+		description.fontFamily = element.params.fontFamily;
 		description.fontSize = element.params.fontSize;
 		description.color = element.params.color;
 	}
@@ -194,6 +197,11 @@ function describeElement({ element }: { element: TimelineElement }) {
 		description.volumeDb = element.params.volume;
 		description.muted = element.params.muted ?? false;
 	}
+	if (isVisualElement(element)) {
+		description.params = element.params;
+		description.effects = element.effects;
+	}
+	description.animatedProperties = Object.keys(element.animations ?? {});
 	if (isVisualElement(element) && element.hidden) {
 		description.hidden = true;
 	}
@@ -210,6 +218,7 @@ export function describeEditorState({ editor }: { editor: EditorCore }) {
 			name: project.metadata.name,
 			fps: Math.round((fps.numerator / fps.denominator) * 100) / 100,
 			canvas: project.settings.canvasSize,
+			background: project.settings.background,
 		},
 		totalDuration: toSeconds({ time: editor.timeline.getTotalDuration() }),
 		playhead: toSeconds({ time: editor.playback.getCurrentTime() }),
@@ -269,6 +278,7 @@ async function transcribeTimeline({
 	}
 
 	const { samples } = await getTimelineAudio({ editor, onProgress });
+	ctx.signal?.throwIfAborted();
 	const result = await transcriptionService.transcribe({
 		audioData: samples,
 		language,
@@ -468,6 +478,7 @@ type ToolHandler = (params: {
 }) => Promise<Omit<ToolOutcome, "ok">> | Omit<ToolOutcome, "ok">;
 
 const handlers: Record<string, ToolHandler> = {
+	...createAdvancedTools({ resolveRefs }),
 	adjust_image: ({ ctx, args }) => {
 		const refs = resolveRefs({
 			editor: ctx.editor,
@@ -1110,7 +1121,12 @@ const handlers: Record<string, ToolHandler> = {
 	},
 };
 
-const READ_ONLY_TOOLS = new Set(["get_timeline_state", "get_transcript"]);
+const READ_ONLY_TOOLS = new Set([
+	"get_timeline_state",
+	"get_transcript",
+	"inspect_preview",
+	"get_editing_catalog",
+]);
 
 /** Fresh IDs/times after an edit, so the model can chain edits without re-reading state. */
 function describeTimelineCompact({ editor }: { editor: EditorCore }) {
@@ -1122,10 +1138,7 @@ function describeTimelineCompact({ editor }: { editor: EditorCore }) {
 			.map((track) => ({
 				id: track.id,
 				type: track.type,
-				elements: track.elements.map(
-					(element) =>
-						`${element.id} ${element.type} ${toSeconds({ time: element.startTime })}-${toSeconds({ time: roundMediaTime({ time: element.startTime + element.duration }) })}`,
-				),
+				elements: track.elements.map((element) => describeElement({ element })),
 			})),
 	};
 }
@@ -1139,7 +1152,7 @@ export async function executeTool({
 	name: string;
 	args: Args;
 }): Promise<ToolOutcome> {
-	const handler = handlers[name];
+	const handler = Object.hasOwn(handlers, name) ? handlers[name] : undefined;
 	if (!handler) {
 		return {
 			result: { error: `Unknown tool "${name}"` },
@@ -1148,6 +1161,7 @@ export async function executeTool({
 		};
 	}
 	try {
+		ctx.signal?.throwIfAborted();
 		const outcome = await handler({ ctx, args });
 		if (READ_ONLY_TOOLS.has(name) || args.dry_run === true) {
 			return { ...outcome, ok: true };

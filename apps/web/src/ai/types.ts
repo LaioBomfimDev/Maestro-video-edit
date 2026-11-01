@@ -8,12 +8,14 @@ export const geminiPartSchema = z
 		functionCall: z
 			.object({
 				name: z.string(),
+				id: z.string().optional(),
 				args: z.record(z.string(), z.unknown()).optional(),
 			})
 			.optional(),
 		functionResponse: z
 			.object({
 				name: z.string(),
+				id: z.string().optional(),
 				response: z.record(z.string(), z.unknown()),
 			})
 			.optional(),
@@ -31,6 +33,8 @@ export type GeminiContent = z.infer<typeof geminiContentSchema>;
 export const chatRequestSchema = z.object({
 	contents: z.array(geminiContentSchema).min(1).max(400),
 	styleReference: z.string().max(20_000).optional(),
+	visualAnalysisEnabled: z.boolean().default(false),
+	allowTools: z.boolean().default(true),
 });
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

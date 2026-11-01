@@ -1,5 +1,6 @@
 "use client";
 
+import { Eye } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
 	AiChat02Icon,
@@ -26,11 +27,29 @@ const SUGGESTIONS = [
 	"Melhore as cores e a iluminação das fotos selecionadas",
 	"Adicione um som de passagem entre os primeiros clipes",
 	"Troque o fundo da foto selecionada por um estúdio claro, mantendo o assunto principal",
-	"Faça um corte de até 30s só com os melhores trechos",
+	"Prepare um Reels de até 30 segundos: cortes, título de abertura, legendas e entrada suave",
+	"Crie um zoom lento nos clipes selecionados usando keyframes",
+	"Revise os efeitos aplicados e reduza os que estiverem exagerados",
 ];
 
 // Run locally without calling Gemini: instant and don't use API quota.
-const QUICK_ACTIONS = [
+const QUICK_ACTIONS: Array<{
+	label: string;
+	tool: string;
+	args: Record<string, unknown>;
+	selection?: boolean;
+}> = [
+	{
+		label: "Formato vertical",
+		tool: "set_project_format",
+		args: { width: 1080, height: 1920 },
+	},
+	{
+		label: "Entrada suave",
+		tool: "apply_transition",
+		args: { preset: "fade", mode: "in", duration: 0.4 },
+		selection: true,
+	},
 	{ label: "Remover silêncios", tool: "remove_silences", args: {} },
 	{
 		label: "Só pausas longas",
@@ -41,6 +60,13 @@ const QUICK_ACTIONS = [
 ];
 
 export function AssistantView() {
+	const editor = useEditor();
+	const visualAnalysisEnabled = useAiChatStore(
+		(state) => state.visualAnalysisEnabled,
+	);
+	const setVisualAnalysisEnabled = useAiChatStore(
+		(state) => state.setVisualAnalysisEnabled,
+	);
 	const messages = useAiChatStore((state) => state.messages);
 	const isRunning = useAiChatStore((state) => state.isRunning);
 	const send = useAiChatStore((state) => state.send);
@@ -77,8 +103,19 @@ export function AssistantView() {
 			scrollRef={scrollRef}
 			contentClassName="pb-2"
 			actions={
-				<div className="flex items-center gap-1.5">
+				<div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
 					<GeminiSettings disabled={isRunning} />
+					<Button
+						variant={visualAnalysisEnabled ? "secondary" : "outline"}
+						size="sm"
+						aria-pressed={visualAnalysisEnabled}
+						aria-label="Permitir análise visual"
+						disabled={isRunning}
+						onClick={() => setVisualAnalysisEnabled(!visualAnalysisEnabled)}
+					>
+						<Eye />
+						Visão
+					</Button>
 					{messages.length > 0 && (
 						<Button
 							variant="ghost"
@@ -93,6 +130,31 @@ export function AssistantView() {
 			}
 		>
 			<div className="flex min-h-full flex-col">
+				<div className="mb-3 rounded-md border p-2">
+					<div className="flex items-center justify-between gap-2">
+						<span className="text-xs font-medium">
+							Análise visual do projeto
+						</span>
+						<span className="text-[10px] text-muted-foreground">
+							{visualAnalysisEnabled
+								? "Visão ativa"
+								: "Ative Visão no cabeçalho"}
+						</span>
+					</div>
+					<p className="mt-1 text-[10px] text-muted-foreground">
+						Quando ativa, a IA pode enviar um quadro da prévia ao Gemini para
+						avaliar a imagem. Consome a cota da chave.
+					</p>
+					<details className="mt-2 text-xs">
+						<summary className="cursor-pointer">O que a IA já executa</summary>
+						<p className="mt-2 text-muted-foreground">
+							Cortes por fala ou silêncio, títulos e legendas, efeitos e cores,
+							transições, posição e escala, animações por keyframes, fades de
+							áudio, duplicação e formato vertical, quadrado ou horizontal. As
+							edições podem ser desfeitas.
+						</p>
+					</details>
+				</div>
 				<p className="mb-2 text-[10px] text-muted-foreground">
 					Pedidos de alteração do conteúdo de fotos enviam a imagem ao Gemini e
 					podem consumir saldo da chave. Para comparar uma prévia antes de
@@ -108,7 +170,30 @@ export function AssistantView() {
 					)}
 				</div>
 				<div className="bg-background sticky bottom-0 flex flex-col gap-2 pt-3">
-					<div className="flex flex-wrap gap-1.5">
+					<div
+						role="group"
+						aria-label="Ações rápidas da IA"
+						className="flex gap-1.5 overflow-x-auto scrollbar-thin pb-1"
+					>
+						{visualAnalysisEnabled && (
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={isRunning}
+								onClick={() =>
+									void runQuickAction({
+										label: "Analisar quadro atual",
+										tool: "inspect_preview",
+										args: {
+											question:
+												"Avalie composição, iluminação, cores e legibilidade do quadro atual e sugira melhorias concretas. Não aplique edições neste pedido.",
+										},
+									})
+								}
+							>
+								Analisar quadro
+							</Button>
+						)}
 						{QUICK_ACTIONS.map((action) => (
 							<Button
 								key={action.label}
@@ -116,7 +201,19 @@ export function AssistantView() {
 								size="sm"
 								className="h-6 px-2 text-xs"
 								disabled={isRunning}
-								onClick={() => void runQuickAction(action)}
+								onClick={() =>
+									void runQuickAction({
+										...action,
+										args: action.selection
+											? {
+													...action.args,
+													element_ids: editor.selection
+														.getSelectedElements()
+														.map((ref) => ref.elementId),
+												}
+											: action.args,
+									})
+								}
 							>
 								{action.label}
 							</Button>

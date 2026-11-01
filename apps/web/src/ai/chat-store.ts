@@ -22,6 +22,8 @@ interface AiChatStore {
 	contents: GeminiContent[];
 	isRunning: boolean;
 	styleReference: string;
+	visualAnalysisEnabled: boolean;
+	setVisualAnalysisEnabled: (value: boolean) => void;
 	abortController: AbortController | null;
 	setStyleReference: (value: string) => void;
 	send: (params: { text: string }) => Promise<void>;
@@ -38,7 +40,11 @@ interface AiChatStore {
 
 type PersistedAiChat = Pick<
 	AiChatStore,
-	"projectId" | "messages" | "contents" | "styleReference"
+	| "projectId"
+	| "messages"
+	| "contents"
+	| "styleReference"
+	| "visualAnalysisEnabled"
 >;
 
 // Command history is in-memory, so per-reply undo ranges can't survive a reload.
@@ -77,6 +83,9 @@ export const useAiChatStore = create<AiChatStore>()(
 				contents: [],
 				isRunning: false,
 				styleReference: "",
+				visualAnalysisEnabled: false,
+				setVisualAnalysisEnabled: (value) =>
+					set({ visualAnalysisEnabled: value }),
 				abortController: null,
 
 				setStyleReference: (value) => set({ styleReference: value }),
@@ -122,6 +131,7 @@ export const useAiChatStore = create<AiChatStore>()(
 							editor,
 							contents: contentsBefore,
 							styleReference: get().styleReference,
+							visualAnalysisEnabled: get().visualAnalysisEnabled,
 							signal: abortController.signal,
 							callbacks: {
 								onText: (chunk) =>
@@ -162,6 +172,7 @@ export const useAiChatStore = create<AiChatStore>()(
 						});
 					}
 
+					if (get().abortController !== abortController) return;
 					const historyAfter = editor.command.getHistorySize();
 					updateMessage({
 						id: assistantId,
@@ -186,7 +197,9 @@ export const useAiChatStore = create<AiChatStore>()(
 					const editor = EditorCore.getInstance();
 					const assistantId = generateUUID();
 					const historyBefore = editor.command.getHistorySize();
+					const abortController = new AbortController();
 					set((state) => ({
+						abortController,
 						isRunning: true,
 						messages: [
 							...state.messages,
@@ -211,6 +224,8 @@ export const useAiChatStore = create<AiChatStore>()(
 					const outcome = await executeTool({
 						ctx: {
 							editor,
+							signal: abortController.signal,
+							visualAnalysisEnabled: get().visualAnalysisEnabled,
 							onProgress: (progress) =>
 								updateMessage({
 									id: assistantId,
@@ -220,11 +235,22 @@ export const useAiChatStore = create<AiChatStore>()(
 						name: tool,
 						args,
 					});
+					if (get().abortController !== abortController) return;
 					const historyAfter = editor.command.getHistorySize();
 					updateMessage({
 						id: assistantId,
 						update: () => ({
-							status: outcome.ok ? "done" : "error",
+							status: abortController.signal.aborted
+								? "done"
+								: outcome.ok
+									? "done"
+									: "error",
+							text:
+								typeof outcome.result.analysis === "string"
+									? outcome.result.analysis
+									: abortController.signal.aborted
+										? "Interrompido."
+										: "",
 							progress: null,
 							actions: [
 								{ name: tool, summary: outcome.summary, ok: outcome.ok },
@@ -237,13 +263,14 @@ export const useAiChatStore = create<AiChatStore>()(
 					});
 					set((state) => ({
 						isRunning: false,
+						abortController: null,
 						contents: [
 							...state.contents,
 							{
 								role: "user",
 								parts: [
 									{
-										text: `[The user ran the quick action "${label}" locally (${tool}): ${outcome.summary}]`,
+										text: `[The user ran the quick action "${label}" locally (${tool}): ${outcome.summary}]${typeof outcome.result.analysis === "string" ? `\n[Visual analysis of the current frame]\n${outcome.result.analysis}` : ""}`,
 									},
 								],
 							},
@@ -285,13 +312,24 @@ export const useAiChatStore = create<AiChatStore>()(
 
 				clear: () => {
 					get().abortController?.abort();
-					set({ messages: [], contents: [], isRunning: false });
+					set({
+						messages: [],
+						contents: [],
+						isRunning: false,
+						abortController: null,
+					});
 				},
 
 				bindProject: ({ projectId }) => {
 					if (get().projectId === projectId) return;
 					get().abortController?.abort();
-					set({ projectId, messages: [], contents: [], isRunning: false });
+					set({
+						projectId,
+						messages: [],
+						contents: [],
+						isRunning: false,
+						abortController: null,
+					});
 				},
 			};
 		},
@@ -302,6 +340,7 @@ export const useAiChatStore = create<AiChatStore>()(
 				messages: state.messages,
 				contents: state.contents,
 				styleReference: state.styleReference,
+				visualAnalysisEnabled: state.visualAnalysisEnabled,
 			}),
 			merge: (persisted, current) => {
 				const restored = (persisted ?? {}) as Partial<PersistedAiChat>;

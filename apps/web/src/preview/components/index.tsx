@@ -195,6 +195,7 @@ function PreviewCanvas({
 		const frame = Math.floor(renderTime / ticksPerFrame);
 
 		if (
+			!editor.renderer.hasPendingPreviewCapture() &&
 			frame === lastFrameRef.current &&
 			renderTree === lastSceneRef.current
 		) {
@@ -207,9 +208,20 @@ function PreviewCanvas({
 		renderer
 			.render({ node: renderTree, time: renderTime })
 			.then(() => {
+				editor.renderer.completePreviewCapture({
+					canvas: renderer.getOutputCanvas(),
+					time: renderTime,
+					renderTree,
+				});
+			})
+			.catch((error: unknown) => {
+				editor.renderer.failPreviewCapture({ error });
+				console.error("Preview rendering failed", error);
+			})
+			.finally(() => {
 				renderingRef.current = false;
 			});
-	}, [renderer, renderTree, editor.playback, editor.timeline]);
+	}, [renderer, renderTree, editor.playback, editor.timeline, editor.renderer]);
 
 	useRafLoop(render);
 
@@ -308,20 +320,20 @@ function PreviewCanvas({
 								ref={viewportRef}
 								className="relative flex size-full min-h-0 min-w-0 items-center justify-center overflow-hidden"
 							>
-							<div
-								ref={canvasMountRef}
-								className="absolute block border"
-								style={{
-									left: viewport.sceneLeft,
-									top: viewport.sceneTop,
-									width: viewport.sceneWidth,
-									height: viewport.sceneHeight,
-									background:
-										activeProject.settings.background.type === "blur"
-											? "transparent"
-											: activeProject?.settings.background.color,
-								}}
-							/>
+								<div
+									ref={canvasMountRef}
+									className="absolute block border"
+									style={{
+										left: viewport.sceneLeft,
+										top: viewport.sceneTop,
+										width: viewport.sceneWidth,
+										height: viewport.sceneHeight,
+										background:
+											activeProject.settings.background.type === "blur"
+												? "transparent"
+												: activeProject?.settings.background.color,
+									}}
+								/>
 								<PreviewOverlayLayer
 									instances={overlayInstances}
 									plane="under-interaction"

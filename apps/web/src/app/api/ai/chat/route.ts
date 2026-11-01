@@ -54,14 +54,21 @@ export async function POST(request: NextRequest) {
 		});
 	}
 
-	const { contents, styleReference } = parsed.data;
+	const { contents, styleReference, visualAnalysisEnabled, allowTools } =
+		parsed.data;
 	const requestBody = JSON.stringify({
 		systemInstruction: {
-			parts: [{ text: buildSystemPrompt({ styleReference }) }],
+			parts: [
+				{ text: buildSystemPrompt({ styleReference, visualAnalysisEnabled }) },
+			],
 		},
 		contents,
-		tools: [{ functionDeclarations: AI_TOOL_DECLARATIONS }],
-		toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+		...(allowTools
+			? {
+					tools: [{ functionDeclarations: AI_TOOL_DECLARATIONS }],
+					toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+				}
+			: {}),
 		...(webEnv.GEMINI_THINKING_LEVEL === "off"
 			? {}
 			: {
@@ -80,6 +87,8 @@ export async function POST(request: NextRequest) {
 	let upstreamJson: unknown = null;
 	let networkError: unknown = null;
 	for (const model of models) {
+		if (request.signal.aborted)
+			return reply({ body: { error: "Pedido interrompido." }, status: 499 });
 		const at = Date.now();
 		const attempt = await fetch(
 			`${GEMINI_API_URL}/models/${encodeURIComponent(model)}:generateContent`,
@@ -90,10 +99,15 @@ export async function POST(request: NextRequest) {
 					"x-goog-api-key": apiKey,
 				},
 				body: requestBody,
-				signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+				signal: AbortSignal.any([
+					request.signal,
+					AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+				]),
 			},
 		).catch((error: unknown) => error);
 		if (!(attempt instanceof Response)) {
+			if (request.signal.aborted)
+				return reply({ body: { error: "Pedido interrompido." }, status: 499 });
 			attempts.push(captureAttempt({ model, at }));
 			networkError = attempt;
 			continue;
